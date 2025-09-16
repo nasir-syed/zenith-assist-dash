@@ -1,5 +1,5 @@
-import express from "express";
-import cors from "cors";
+const express = require("express");
+const cors = require("cors");
 
 let n8nData = []; // in-memory cache
 
@@ -19,4 +19,5 @@ app.get("/properties", (req, res) => {
   res.json(n8nData);
 });
 
-app.listen(4000, () => console.log("Server running on http://localhost:4000"));
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
