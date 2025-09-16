@@ -26,12 +26,12 @@ import property4 from '@/assets/property-4.jpg';
 import property5 from '@/assets/property-5.jpg';
 
 interface PropertyFormProps {
-  property?: (Property & { 
-    image: string; 
-    description: string; 
-    bedrooms: number; 
-    bathrooms: number; 
-    sqft: number; 
+  property?: (Property & {
+    image: string;
+    description: string;
+    bedrooms: number;
+    bathrooms: number;
+    sqft: number;
   }) | null;
   open: boolean;
   onClose: () => void;
@@ -53,6 +53,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ property, open, onClose }) 
     bathrooms: 1,
     sqft: 1000
   });
+
+  const [image, setImage] = useState(property?.image || '');
 
   const imageOptions = [
     { value: property1, label: 'Modern Building' },
@@ -76,6 +78,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ property, open, onClose }) 
         bathrooms: property.bathrooms,
         sqft: property.sqft
       });
+      setImage(property.image);
     } else {
       setFormData({
         title: '',
@@ -89,12 +92,13 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ property, open, onClose }) 
         bathrooms: 1,
         sqft: 1000
       });
+      setImage(property1);
     }
   }, [property, open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (property) {
       updateProperty(property.id, formData);
       toast({
@@ -108,12 +112,24 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ property, open, onClose }) 
         description: `${formData.title} has been added to listings.`,
       });
     }
-    
+
     onClose();
   };
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImage(reader.result as string);
+        setFormData(prev => ({ ...prev, image: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   return (
@@ -124,7 +140,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ property, open, onClose }) 
             {property ? 'Edit Property' : 'Add New Property'}
           </DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -233,19 +249,29 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ property, open, onClose }) 
 
           <div className="space-y-2">
             <Label htmlFor="image">Property Image</Label>
-            <Select value={formData.image} onValueChange={(value) => handleChange('image', value)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {imageOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <img src={formData.image} alt="Preview" className="w-full h-32 object-cover rounded-md mt-2" />
+            <div className="flex flex-col md:flex-row md:items-center md:gap-4">
+              <label
+                htmlFor="property-image-upload"
+                className="inline-block px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-700 cursor-pointer shadow-sm hover:bg-gray-50 transition"
+                style={{ fontWeight: 500, fontSize: '1rem' }}
+              >
+                Choose Image
+                <input
+                  id="property-image-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+              </label>
+            </div>
+            {image && (
+              <img
+                src={image}
+                alt="Property Preview"
+                className="mt-2 w-full h-32 object-cover rounded-md border"
+              />
+            )}
           </div>
 
           <div className="space-y-2">
