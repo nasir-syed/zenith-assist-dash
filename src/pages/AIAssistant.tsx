@@ -1,9 +1,50 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import PublicNavbar from '@/components/layout/PublicNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bot, MessageCircle, Mic } from 'lucide-react';
+import { Bot, MessageCircle } from 'lucide-react';
+
+// 🔹 Utility to get or create a secure session ID (using sessionStorage)
+function getOrCreateSessionId(): string {
+  const key = 'visitorSessionId';
+  let sessionId = sessionStorage.getItem(key);
+
+  if (!sessionId) {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      sessionId = crypto.randomUUID();
+    } else {
+      // fallback if randomUUID is unavailable
+      sessionId = 'xxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+    }
+    sessionStorage.setItem(key, sessionId);
+  }
+
+  return sessionId;
+}
 
 const AIAssistant = () => {
+  const [sessionId, setSessionId] = useState<string>("");
+
+  useEffect(() => {
+    // 1. Generate / retrieve session ID
+    const id = getOrCreateSessionId();
+    setSessionId(id);
+
+    // 2. Inject ElevenLabs script once
+    const scriptId = 'elevenlabs-convai-script';
+    if (!document.getElementById(scriptId)) {
+      const script = document.createElement('script');
+      script.id = scriptId;
+      script.src = 'https://unpkg.com/@elevenlabs/convai-widget-embed';
+      script.async = true;
+      script.type = 'text/javascript';
+      document.body.appendChild(script);
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <PublicNavbar />
@@ -35,59 +76,11 @@ const AIAssistant = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3">
-                  <div className="h-6 w-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-medium">
-                    1
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground">Click the microphone button</h4>
-                    <p className="text-muted-foreground">Start a voice conversation with our AI assistant</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="h-6 w-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-medium">
-                    2
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground">Ask your questions</h4>
-                    <p className="text-muted-foreground">Inquire about properties, schedule viewings, or get market insights</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="h-6 w-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-medium">
-                    3
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground">Get instant assistance</h4>
-                    <p className="text-muted-foreground">Receive personalized recommendations and next steps</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* AI Assistant Widget Placeholder */}
-          <Card className="shadow-elevated">
-            <CardContent className="p-12">
-              <div className="text-center">
-                <div className="h-24 w-24 bg-secondary rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Mic className="h-12 w-12 text-muted-foreground" />
-                </div>
-                <h3 className="text-2xl font-semibold text-foreground mb-4">
-                  Voice Assistant Coming Soon
-                </h3>
-                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                  Our ElevenLabs-powered voice assistant will be integrated here. 
-                  You'll be able to have natural conversations about real estate needs.
-                </p>
-                <div className="bg-muted rounded-lg p-6">
-                  <p className="text-sm text-muted-foreground">
-                    <strong>Integration Note:</strong> This is where the ElevenLabs 
-                    Conversational AI widget will be embedded for voice interactions.
-                  </p>
-                </div>
-              </div>
+              <ol className="space-y-4 list-decimal list-inside">
+                <li>Click the microphone button to start a conversation</li>
+                <li>Ask about properties, schedule viewings, or get advice</li>
+                <li>Receive personalized recommendations instantly</li>
+              </ol>
             </CardContent>
           </Card>
 
@@ -98,22 +91,37 @@ const AIAssistant = () => {
             </CardHeader>
             <CardContent>
               <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-3">
+                <div>
                   <h4 className="font-medium text-foreground">Property Search</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
+                  <ul className="list-disc list-inside text-sm text-muted-foreground">
                     <li>"Show me 3-bedroom houses under $500,000"</li>
                     <li>"Find condos near downtown with parking"</li>
                     <li>"What's available in the Maple Heights area?"</li>
                   </ul>
                 </div>
-                <div className="space-y-3">
+                <div>
                   <h4 className="font-medium text-foreground">Scheduling & Support</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
+                  <ul className="list-disc list-inside text-sm text-muted-foreground">
                     <li>"Schedule a viewing for this weekend"</li>
                     <li>"What's the market value of my home?"</li>
                     <li>"Connect me with an agent in my area"</li>
                   </ul>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* AI Assistant Widget */}
+          <Card className="shadow-elevated mt-8">
+            <CardContent className="-p-16 md:pd-0">
+              <div className="w-full flex justify-center">
+                {sessionId && (
+                  <elevenlabs-convai
+                    agent-id="agent_5401k30w692me5yb1yqjgevzabp2"
+                    style={{ position: "relative", width: "1200px", height: "600px", marginTop: "-55px" }}
+                    dynamic-variables={JSON.stringify({ sessionId })}
+                  />
+                )}
               </div>
             </CardContent>
           </Card>

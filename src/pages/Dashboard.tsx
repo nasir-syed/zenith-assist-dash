@@ -125,8 +125,8 @@ const Dashboard = () => {
         </div>
 
         {/* Charts Section */}
-        <div className="grid lg:grid-cols-2 gap-6">
-          <Card className="shadow-card">
+        <div className="grid lg:grid-cols-1 gap-6">
+          {/*<Card className="shadow-card">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <TrendingUp className="mr-2 h-5 w-5 text-primary" />
@@ -138,12 +138,12 @@ const Dashboard = () => {
                 <p className="text-muted-foreground">Chart placeholder - Lead trends over time</p>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           <Card className="shadow-card">
             <CardHeader>
               <CardTitle className="flex items-center">
-                <Calendar className="mr-2 h-5 w-5 text-primary" />
+                <Calendar className="mr-2 h-10 w-5 text-primary" />
                 Recent Activity
               </CardTitle>
             </CardHeader>
