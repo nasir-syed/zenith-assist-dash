@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import PublicNavbar from '@/components/layout/PublicNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Bot, MessageCircle } from 'lucide-react';
+import PropertiesList from '../components/modals/PropertiesList'; 
 
 // 🔹 Utility to get or create a secure session ID (using sessionStorage)
 function getOrCreateSessionId(): string {
@@ -26,7 +27,7 @@ function getOrCreateSessionId(): string {
 }
 
 const AIAssistant = () => {
-  const [sessionId, setSessionId] = useState<string>("");
+  const [sessionId, setSessionId] = useState<string>('');
 
   useEffect(() => {
     // 1. Generate / retrieve session ID
@@ -118,13 +119,20 @@ const AIAssistant = () => {
                 {sessionId && (
                   <elevenlabs-convai
                     agent-id="agent_5401k30w692me5yb1yqjgevzabp2"
-                    style={{ position: "relative", width: "1200px", height: "600px", marginTop: "-55px" }}
+                    style={{ position: "relative", width: "1200px", height: "600px", marginTop: "-55px", zIndex: "20"}}
                     dynamic-variables={JSON.stringify({ sessionId })}
                   />
                 )}
               </div>
             </CardContent>
           </Card>
+
+          {/* Properties List — only shown if sessionId matches n8n data */}
+          {sessionId && (
+            <div className="mt-12">
+              <PropertiesList visitorSessionId={sessionId} />
+            </div>
+          )}
         </div>
       </div>
     </div>
