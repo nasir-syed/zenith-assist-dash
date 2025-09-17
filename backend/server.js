@@ -14,9 +14,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Connection']
 }));
 
-// Handle preflight requests
-app.options('*', cors());
-
 app.use(express.json());
 
 // Add request logging middleware
@@ -188,7 +185,6 @@ process.on('unhandledRejection', (reason, promise) => {
 
 const PORT = process.env.PORT || 4000;
 
-// test
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
   console.log(`Health check: http://0.0.0.0:${PORT}/health`);
