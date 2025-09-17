@@ -1,22 +1,22 @@
-import React, { useEffect, useState } from 'react';
-import PublicNavbar from '@/components/layout/PublicNavbar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bot, MessageCircle } from 'lucide-react';
-import PropertiesList from '../components/modals/PropertiesList'; 
+import React, { useEffect, useState } from "react";
+import PublicNavbar from "@/components/layout/PublicNavbar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Bot, MessageCircle } from "lucide-react";
+import PropertiesList from "../components/modals/PropertiesList";
 
 // 🔹 Utility to get or create a secure session ID (using sessionStorage)
 function getOrCreateSessionId(): string {
-  const key = 'visitorSessionId';
+  const key = "visitorSessionId";
   let sessionId = sessionStorage.getItem(key);
 
   if (!sessionId) {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    if (typeof crypto !== "undefined" && crypto.randomUUID) {
       sessionId = crypto.randomUUID();
     } else {
-      // fallback if randomUUID is unavailable
-      sessionId = 'xxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      // Fallback if randomUUID is unavailable
+      sessionId = "xxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
         const r = (Math.random() * 16) | 0;
-        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        const v = c === "x" ? r : (r & 0x3) | 0x8;
         return v.toString(16);
       });
     }
@@ -27,21 +27,21 @@ function getOrCreateSessionId(): string {
 }
 
 const AIAssistant = () => {
-  const [sessionId, setSessionId] = useState<string>('');
+  const [sessionId, setSessionId] = useState<string>("");
 
   useEffect(() => {
-    // 1. Generate / retrieve session ID
+    // 1) Generate / retrieve session ID
     const id = getOrCreateSessionId();
     setSessionId(id);
 
-    // 2. Inject ElevenLabs script once
-    const scriptId = 'elevenlabs-convai-script';
+    // 2) Inject ElevenLabs script once
+    const scriptId = "elevenlabs-convai-script";
     if (!document.getElementById(scriptId)) {
-      const script = document.createElement('script');
+      const script = document.createElement("script");
       script.id = scriptId;
-      script.src = 'https://unpkg.com/@elevenlabs/convai-widget-embed';
+      script.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
       script.async = true;
-      script.type = 'text/javascript';
+      script.type = "text/javascript";
       document.body.appendChild(script);
     }
   }, []);
@@ -53,7 +53,7 @@ const AIAssistant = () => {
       <div className="pt-24 pb-16 px-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-13 px">
+          <div className="text-center mb-12">
             <div className="flex justify-center mb-6">
               <div className="h-20 w-20 bg-gradient-primary rounded-full flex items-center justify-center shadow-elevated">
                 <Bot className="h-10 w-10 text-primary-foreground" />
@@ -113,18 +113,18 @@ const AIAssistant = () => {
           </Card>
 
           {/* AI Assistant Widget */}
-          <Card className="mt-8 max-w-[1000px] mx-auto z-0">
-            <CardContent className="p-0">      
+          <Card className="shadow-elevated mt-8">
+            <CardContent className="p-0">
               <div className="w-full flex justify-center">
                 {sessionId && (
                   <elevenlabs-convai
                     agent-id="agent_5401k30w692me5yb1yqjgevzabp2"
                     style={{
                       position: "relative",
-                      width: "100%",
-                      maxWidth: "1000px",
-                      height: "550px",
-                      zIndex: 20,
+                      width: "1200px",
+                      height: "600px",
+                      marginTop: "-55px",
+                      zIndex: "20",
                     }}
                     dynamic-variables={JSON.stringify({ sessionId })}
                   />
@@ -133,6 +133,12 @@ const AIAssistant = () => {
             </CardContent>
           </Card>
 
+          {/* Properties List — only shown if sessionId is set */}
+          {sessionId && (
+            <div className="mt-12">
+              <PropertiesList visitorSessionId={sessionId} />
+            </div>
+          )}
         </div>
       </div>
     </div>
