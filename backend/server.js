@@ -1,22 +1,54 @@
 const express = require("express");
 const cors = require("cors");
 
-let n8nData = []; // in-memory cache
+let n8nData = [];
+let clients = []; // list of connected SSE clients
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// n8n will POST here
+// n8n POSTs property data here
 app.post("/properties", (req, res) => {
   n8nData = req.body;
   console.log("Received from n8n:", n8nData);
+
+  // send to all SSE clients
+  clients.forEach((client) =>
+    client.res.write(`data: ${JSON.stringify(n8nData)}\n\n`)
+  );
+
   res.json({ success: true });
 });
 
-// React will GET here
+// React GETs initial data here (optional)
 app.get("/properties", (req, res) => {
   res.json(n8nData);
+});
+
+// SSE endpoint
+app.get("/stream", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders(); // send headers immediately
+
+  const clientId = Date.now();
+  const newClient = { id: clientId, res };
+  clients.push(newClient);
+
+  console.log(`Client ${clientId} connected. Total: ${clients.length}`);
+
+  // Send initial data immediately
+  if (n8nData) {
+    res.write(`data: ${JSON.stringify(n8nData)}\n\n`);
+  }
+
+  // Remove client on disconnect
+  req.on("close", () => {
+    clients = clients.filter((c) => c.id !== clientId);
+    console.log(`Client ${clientId} disconnected. Total: ${clients.length}`);
+  });
 });
 
 const PORT = process.env.PORT || 4000;

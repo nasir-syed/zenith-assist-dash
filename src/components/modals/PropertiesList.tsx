@@ -1,170 +1,220 @@
 import React, { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, MapPin, User } from "lucide-react";
+import { DollarSign, MapPin, Building2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 type PropertyData = {
   title: string;
   community: string;
   subCommunity?: string;
   price: number;
-  status: string;
+  status?: string;
   emirate: string;
   amenities: string[];
-  image?: string;
-  description?: string;
-  sessionId: string; 
+  cover_photo?: string;
+  type?: string;
+  sessionId: string;
 };
 
 interface PropertiesListProps {
-  visitorSessionId: string; // passed from parent
+  visitorSessionId: string;
 }
 
-const PropertiesList: React.FC<PropertiesListProps> = ({ visitorSessionId }) => {
+const PropertiesList: React.FC<PropertiesListProps> = ({
+  visitorSessionId,
+}) => {
   const [properties, setProperties] = useState<PropertyData[] | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedProperty, setSelectedProperty] = useState<PropertyData | null>(null);
+  const [selectedProperty, setSelectedProperty] =
+    useState<PropertyData | null>(null);
+  const [outerModalOpen, setOuterModalOpen] = useState(true); // open initially
   const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
-    const fetchProperties = async () => {
+    const eventSource = new EventSource("https://real-estate-prototype.onrender.com/stream");
+
+    eventSource.onmessage = (event) => {
       try {
-        const stored = sessionStorage.getItem("properties");
-        const storedSessionId = sessionStorage.getItem("propertiesSessionId");
+        const data = JSON.parse(event.data);
 
-        if (stored && storedSessionId === visitorSessionId) {
-          setProperties(JSON.parse(stored));
-          setLoading(false);
-          return;
-        }
+        if (data.SessionId === visitorSessionId) {
+          const propsArray = Array.isArray(data.Properties) ? data.Properties : [];
+          const matchingData = propsArray.map((p) => ({
+            ...p,
+            sessionId: data.SessionId,
+          }));
 
-        // Fetch from backend
-        const res = await fetch("http://localhost:4000/properties");
-        if (!res.ok) throw new Error("Failed to fetch properties");
-        const data: PropertyData[] = await res.json();
+          setProperties(matchingData);
 
-        // Only include properties with matching sessionId
-        const matchingData = data.filter((p) => p.sessionId === visitorSessionId);
-
-        if (matchingData.length > 0) {
+          // optional: cache
           sessionStorage.setItem("properties", JSON.stringify(matchingData));
           sessionStorage.setItem("propertiesSessionId", visitorSessionId);
-          setProperties(matchingData);
-        } else {
-          setProperties([]);
         }
       } catch (err) {
-        console.error(err);
-        setProperties([]);
-      } finally {
-        setLoading(false);
+        console.error("SSE parse error", err);
       }
     };
 
-    fetchProperties();
+    eventSource.onerror = (err) => {
+      console.error("SSE error", err);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
   }, [visitorSessionId]);
+
 
   if (loading) return null;
   if (!properties || properties.length === 0) return null;
 
   return (
     <>
-      {/* Property Cards */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {properties.map((prop) => (
-          <div
-            key={prop.title + prop.price}
-            className="border rounded-lg shadow cursor-pointer hover:shadow-lg transition overflow-hidden"
-            onClick={() => {
-              setSelectedProperty(prop);
-              setModalOpen(true);
-            }}
-          >
-            {prop.image && (
-              <div className="relative">
-                <img
-                  src={prop.image}
-                  alt={prop.title}
-                  className="w-full h-64 object-cover"
-                />
-                <div className="absolute top-4 right-4">
-                  <Badge
-                    className={
-                      prop.status === "Available"
-                        ? "bg-success text-success-foreground"
-                        : prop.status === "Pending"
-                        ? "bg-warning text-warning-foreground"
-                        : "bg-muted text-muted-foreground"
-                    }
-                  >
-                    {prop.status}
-                  </Badge>
-                </div>
-              </div>
-            )}
-            <div className="p-4 space-y-2">
-              <h3 className="text-lg font-bold">{prop.title}</h3>
-              <p className="text-sm text-muted-foreground">
-                {prop.community}{prop.subCommunity ? ` - ${prop.subCommunity}` : ""}
-              </p>
-              <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-2">
-                <div className="flex items-center">
-                  <DollarSign className="h-4 w-4 mr-1" />
-                  <span>AED {prop.price.toLocaleString()}</span>
-                </div>
-              </div>
-              {prop.amenities && prop.amenities.length > 0 && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  Amenities: {prop.amenities.join(", ")}
-                </p>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* Outer Modal with property cards */}
+      <Dialog open={outerModalOpen} onOpenChange={setOuterModalOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto backdrop-blur-xl rounded-2xl shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-center">
+              Available Properties
+            </DialogTitle>
+          </DialogHeader>
 
-      {/* Property Modal */}
-      <Dialog open={modalOpen} onOpenChange={() => setModalOpen(false)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-4">
+            {properties.map((prop) => (
+              <div
+                key={prop.title + prop.price}
+                className="border rounded-xl shadow-md bg-white cursor-pointer hover:shadow-lg transition overflow-hidden"
+                onClick={() => {
+                  setSelectedProperty(prop);
+                  setModalOpen(true);
+                }}
+              >
+                {prop.cover_photo && (
+                  <div className="relative">
+                    <img
+                      src={prop.cover_photo}
+                      alt={prop.title}
+                      className="w-full h-56 object-cover"
+                    />
+                    {prop.status && (
+                      <div className="absolute top-4 right-4">
+                        <Badge
+                          className={
+                            prop.status === "Available"
+                              ? "bg-green-600 text-white"
+                              : prop.status === "Pending"
+                              ? "bg-yellow-500 text-white"
+                              : "bg-gray-400 text-white"
+                          }
+                        >
+                          {prop.status}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="p-4 space-y-2">
+                  <h3 className="text-lg font-bold">{prop.title}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {prop.community}
+                    {prop.subCommunity ? ` - ${prop.subCommunity}` : ""}
+                  </p>
+                  <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-2">
+                    <div className="flex items-center">
+                      <DollarSign className="h-4 w-4 mr-1" />
+                      <span>AED {prop.price.toLocaleString()}</span>
+                    </div>
+                  </div>
+                  {prop.type && (
+                    <p className="text-sm text-muted-foreground">
+                      Type: {prop.type}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reopen Button (only shows when outer modal is closed) */}
+      {!outerModalOpen && (
+        <div className="w-full flex justify-center items-center">
+            <Button
+            onClick={() => setOuterModalOpen(true)}
+            className="relative rounded-full shadow-lg px-6 py-3 bg-primary text-white"
+            >
+            Show Properties
+            </Button>
+        </div>
+      )}
+
+      {/* Inner Modal for property details */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto backdrop-blur-lg rounded-2xl shadow-2xl">
           {selectedProperty && (
             <>
               <DialogHeader>
-                <DialogTitle className="text-2xl font-bold">{selectedProperty.title}</DialogTitle>
+                <DialogTitle className="text-2xl font-bold">
+                  {selectedProperty.title}
+                </DialogTitle>
               </DialogHeader>
-              {selectedProperty.image && (
+              {selectedProperty.cover_photo && (
                 <img
-                  src={selectedProperty.image}
+                  src={selectedProperty.cover_photo}
                   alt={selectedProperty.title}
-                  className="w-full h-64 object-cover rounded-lg mb-4"
+                  className="w-full h-72 object-cover rounded-lg mb-6"
                 />
               )}
               <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-2">
+                {/* Left column */}
+                <div className="space-y-4">
                   <div className="flex items-center text-muted-foreground">
-                    <DollarSign className="h-4 w-4 mr-2" />
+                    <DollarSign className="h-5 w-5 mr-2 text-green-600" />
                     <span className="font-semibold text-foreground">
                       AED {selectedProperty.price.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex items-center text-muted-foreground">
-                    <MapPin className="h-4 w-4 mr-2" />
-                    <span>{selectedProperty.community}</span>
+                    <MapPin className="h-5 w-5 mr-2 text-blue-600" />
+                    <span>
+                      {selectedProperty.community}
+                      {selectedProperty.subCommunity
+                        ? ` - ${selectedProperty.subCommunity}`
+                        : ""}{" "}
+                      ({selectedProperty.emirate})
+                    </span>
                   </div>
-                  <div className="flex items-center text-muted-foreground">
-                    <User className="h-4 w-4 mr-2" />
-                    <span>Assigned Agent</span>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground mb-2">Description</h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    {selectedProperty.description || "No description available."}
-                  </p>
-                  {selectedProperty.amenities && selectedProperty.amenities.length > 0 && (
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Amenities: {selectedProperty.amenities.join(", ")}
-                    </p>
+                  {selectedProperty.type && (
+                    <div className="flex items-center text-muted-foreground">
+                      <Building2 className="h-5 w-5 mr-2 text-purple-600" />
+                      <span>{selectedProperty.type}</span>
+                    </div>
                   )}
+                </div>
+
+                {/* Right column */}
+                <div>
+                  {selectedProperty.amenities &&
+                    selectedProperty.amenities.length > 0 && (
+                      <div>
+                        <h4 className="text-md font-semibold text-foreground mb-2">
+                          Amenities
+                        </h4>
+                        <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-2">
+                          {selectedProperty.amenities.map((a) => (
+                            <li key={a}>{a}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                 </div>
               </div>
             </>
