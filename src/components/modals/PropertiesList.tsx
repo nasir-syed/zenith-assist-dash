@@ -6,10 +6,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, MapPin, Building2 } from "lucide-react";
+import { DollarSign, MapPin, Building2, Check, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 type PropertyData = {
+  id: string; // 🔹 ensure each property has a unique id
   title: string;
   community: string;
   subCommunity?: string;
@@ -20,6 +22,7 @@ type PropertyData = {
   cover_photo?: string;
   type?: string;
   sessionId: string;
+  agentId: string; // 🔹 added for unique agent tracking
 };
 
 interface PropertiesListProps {
@@ -30,131 +33,160 @@ const PropertiesList: React.FC<PropertiesListProps> = ({
   visitorSessionId,
 }) => {
   const [properties, setProperties] = useState<PropertyData[] | null>(null);
-  const [loading, setLoading] = useState(true);
   const [selectedProperty, setSelectedProperty] =
     useState<PropertyData | null>(null);
-  const [outerModalOpen, setOuterModalOpen] = useState(true); // open initially
+  const [outerModalOpen, setOuterModalOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
-  useEffect(() => {
-    const eventSource = new EventSource("https://real-estate-prototype.onrender.com/stream");
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
+  const [selectedDate, setSelectedDate] = useState("");
 
-    eventSource.onmessage = (event) => {
+  useEffect(() => {
+    const evtSource = new EventSource("https://real-estate-prototype.onrender.com/stream");
+
+    evtSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
 
         if (data.SessionId === visitorSessionId) {
-          const propsArray = Array.isArray(data.Properties) ? data.Properties : [];
-          const matchingData = propsArray.map((p) => ({
+          const propsArray = Array.isArray(data.Properties)
+            ? data.Properties
+            : [];
+          const matchingData = propsArray.map((p: PropertyData, i: number) => ({
             ...p,
+            id: p.id || `${data.SessionId}-${i}`, // fallback id
             sessionId: data.SessionId,
           }));
 
-          setProperties(matchingData);
+          if (matchingData.length > 0) {
+            sessionStorage.setItem("properties", JSON.stringify(matchingData));
+            sessionStorage.setItem("propertiesSessionId", visitorSessionId);
+            setProperties(matchingData);
 
-          // optional: cache
-          sessionStorage.setItem("properties", JSON.stringify(matchingData));
-          sessionStorage.setItem("propertiesSessionId", visitorSessionId);
+            setOuterModalOpen(false);
+            setTimeout(() => setOuterModalOpen(true), 50);
+          }
         }
       } catch (err) {
         console.error("SSE parse error", err);
       }
     };
 
-    eventSource.onerror = (err) => {
-      console.error("SSE error", err);
-      eventSource.close();
-    };
-
-    return () => {
-      eventSource.close();
-    };
+    return () => evtSource.close();
   }, [visitorSessionId]);
 
+  const togglePropertySelection = (id: string) => {
+    setSelectedProperties((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
+  };
 
-  if (loading) return null;
   if (!properties || properties.length === 0) return null;
+
+  // 🔹 Count unique agents from selected properties
+  const uniqueAgents = new Set(
+    properties
+      .filter((p) => selectedProperties.includes(p.id))
+      .map((p) => p.agentId)
+  ).size;
 
   return (
     <>
-      {/* Outer Modal with property cards */}
+      {/* Outer Modal */}
       <Dialog open={outerModalOpen} onOpenChange={setOuterModalOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto backdrop-blur-xl rounded-2xl shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-center">
+        <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col backdrop-blur-xl rounded-2xl shadow-2xl">
+          <DialogHeader className="flex justify-between items-center">
+            <DialogTitle className="text-2xl font-bold text-center flex-1">
               Available Properties
             </DialogTitle>
+            <Button
+              variant={selectMode ? "secondary" : "default"}
+              onClick={() => setSelectMode((prev) => !prev)}
+              className="ml-4"
+            >
+              {selectMode ? "Cancel Selection" : "Select"}
+            </Button>
           </DialogHeader>
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-4">
-            {properties.map((prop) => (
-              <div
-                key={prop.title + prop.price}
-                className="border rounded-xl shadow-md bg-white cursor-pointer hover:shadow-lg transition overflow-hidden"
-                onClick={() => {
-                  setSelectedProperty(prop);
-                  setModalOpen(true);
-                }}
-              >
-                {prop.cover_photo && (
-                  <div className="relative">
+          {/* Scrollable container for property cards */}
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-4 overflow-y-auto pr-2 flex-1">
+            {properties.map((prop) => {
+              const isSelected = selectedProperties.includes(prop.id);
+              return (
+                <div
+                  key={prop.id}
+                  className="relative border rounded-xl shadow-md bg-white cursor-pointer hover:shadow-lg transition overflow-hidden"
+                  onClick={() =>
+                    selectMode
+                      ? togglePropertySelection(prop.id)
+                      : (setSelectedProperty(prop), setModalOpen(true))
+                  }
+                >
+                  {/* Selection Circle */}
+                  {selectMode && (
+                    <div className="absolute top-4 right-4 z-10">
+                      <div
+                        className={`h-6 w-6 rounded-full border-2 flex items-center justify-center ${
+                          isSelected
+                            ? "bg-blue-600 border-blue-600 text-white"
+                            : "border-gray-400 bg-white"
+                        }`}
+                      >
+                        {isSelected && <Check className="h-4 w-4" />}
+                      </div>
+                    </div>
+                  )}
+
+                  {prop.cover_photo && (
                     <img
                       src={prop.cover_photo}
                       alt={prop.title}
                       className="w-full h-56 object-cover"
                     />
-                    {prop.status && (
-                      <div className="absolute top-4 right-4">
-                        <Badge
-                          className={
-                            prop.status === "Available"
-                              ? "bg-green-600 text-white"
-                              : prop.status === "Pending"
-                              ? "bg-yellow-500 text-white"
-                              : "bg-gray-400 text-white"
-                          }
-                        >
-                          {prop.status}
-                        </Badge>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <div className="p-4 space-y-2">
-                  <h3 className="text-lg font-bold">{prop.title}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {prop.community}
-                    {prop.subCommunity ? ` - ${prop.subCommunity}` : ""}
-                  </p>
-                  <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-2">
-                    <div className="flex items-center">
+                  )}
+                  <div className="p-4 space-y-2">
+                    <h3 className="text-lg font-bold">{prop.title}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {prop.community}
+                      {prop.subCommunity ? ` - ${prop.subCommunity}` : ""}
+                    </p>
+                    <div className="flex items-center text-sm text-muted-foreground mt-2">
                       <DollarSign className="h-4 w-4 mr-1" />
                       <span>AED {prop.price.toLocaleString()}</span>
                     </div>
+                    {prop.type && (
+                      <p className="text-sm text-muted-foreground">
+                        Type: {prop.type}
+                      </p>
+                    )}
                   </div>
-                  {prop.type && (
-                    <p className="text-sm text-muted-foreground">
-                      Type: {prop.type}
-                    </p>
-                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
+
+          {/* Agent + Date Picker Section */}
+          {selectMode && selectedProperties.length > 0 && (
+            <div className="border-t pt-4 mt-4">
+              <p className="text-sm text-foreground mb-2">
+                You have selected <b>{selectedProperties.length}</b> properties
+                involving <b>{uniqueAgents}</b>{" "}
+                {uniqueAgents === 1 ? "agent" : "agents"}.
+              </p>
+              <label className="text-sm font-medium text-foreground">
+                Pick a date to meet/talk with the agent(s):
+              </label>
+              <Input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
-
-      {/* Reopen Button (only shows when outer modal is closed) */}
-      {!outerModalOpen && (
-        <div className="w-full flex justify-center items-center">
-            <Button
-            onClick={() => setOuterModalOpen(true)}
-            className="relative rounded-full shadow-lg px-6 py-3 bg-primary text-white"
-            >
-            Show Properties
-            </Button>
-        </div>
-      )}
 
       {/* Inner Modal for property details */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
@@ -202,19 +234,18 @@ const PropertiesList: React.FC<PropertiesListProps> = ({
 
                 {/* Right column */}
                 <div>
-                  {selectedProperty.amenities &&
-                    selectedProperty.amenities.length > 0 && (
-                      <div>
-                        <h4 className="text-md font-semibold text-foreground mb-2">
-                          Amenities
-                        </h4>
-                        <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-2">
-                          {selectedProperty.amenities.map((a) => (
-                            <li key={a}>{a}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                  {selectedProperty.amenities?.length > 0 && (
+                    <div>
+                      <h4 className="text-md font-semibold text-foreground mb-2">
+                        Amenities
+                      </h4>
+                      <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-2">
+                        {selectedProperty.amenities.map((a) => (
+                          <li key={a}>{a}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </div>
             </>
