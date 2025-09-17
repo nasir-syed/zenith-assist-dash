@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import PublicNavbar from '@/components/layout/PublicNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Bot, MessageCircle } from 'lucide-react';
+import PropertiesList from '../components/modals/PropertiesList'; 
 
 // 🔹 Utility to get or create a secure session ID (using sessionStorage)
 function getOrCreateSessionId(): string {
@@ -26,7 +27,7 @@ function getOrCreateSessionId(): string {
 }
 
 const AIAssistant = () => {
-  const [sessionId, setSessionId] = useState<string>("");
+  const [sessionId, setSessionId] = useState<string>('');
 
   useEffect(() => {
     // 1. Generate / retrieve session ID
