@@ -48,11 +48,11 @@ const AIAssistant = () => {
   return (
     <div className="min-h-screen bg-background">
       <PublicNavbar />
-      
+
       <div className="pt-24 pb-16 px-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-12">
+          <div className="text-center mb-13 px">
             <div className="flex justify-center mb-6">
               <div className="h-20 w-20 bg-gradient-primary rounded-full flex items-center justify-center shadow-elevated">
                 <Bot className="h-10 w-10 text-primary-foreground" />
@@ -62,7 +62,7 @@ const AIAssistant = () => {
               AI Real Estate Assistant
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Talk to our AI assistant to book property viewings, ask about listings, 
+              Talk to our AI assistant to book property viewings, ask about listings,
               or get personalized real estate advice. Available 24/7 to help you.
             </p>
           </div>
@@ -112,19 +112,26 @@ const AIAssistant = () => {
           </Card>
 
           {/* AI Assistant Widget */}
-          <Card className="shadow-elevated mt-8">
-            <CardContent className="-p-16 md:pd-0">
+          <Card className="mt-8 max-w-[1000px] mx-auto z-0">
+            <CardContent className="p-0">      
               <div className="w-full flex justify-center">
                 {sessionId && (
                   <elevenlabs-convai
                     agent-id="agent_5401k30w692me5yb1yqjgevzabp2"
-                    style={{ position: "relative", width: "1200px", height: "600px", marginTop: "-55px" }}
+                    style={{
+                      position: "relative",
+                      width: "100%",
+                      maxWidth: "1000px",
+                      height: "550px",
+                      zIndex: 20,
+                    }}
                     dynamic-variables={JSON.stringify({ sessionId })}
                   />
                 )}
               </div>
             </CardContent>
           </Card>
+
         </div>
       </div>
     </div>
