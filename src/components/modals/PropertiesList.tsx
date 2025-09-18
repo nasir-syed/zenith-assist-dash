@@ -84,13 +84,10 @@ const PropertiesList: React.FC<PropertiesListProps> = ({ visitorSessionId }) => 
     evtSource.onmessage = (event) => {
       try {
         const parsed = JSON.parse(event.data);
-        const envelopes: StreamEnvelope[] = Array.isArray(parsed)
-          ? parsed
-          : [parsed];
+        const envelopes: StreamEnvelope[] = Array.isArray(parsed) ? parsed : [parsed];
 
-        const matched =
-          envelopes.find((e) => e.SessionId === visitorSessionId) ??
-          envelopes[0];
+        // Only pick envelope matching current visitorSessionId
+        const matched = envelopes.find((e) => e.SessionId === visitorSessionId);
 
         if (matched) {
           setRawEnvelope(matched);
@@ -98,17 +95,17 @@ const PropertiesList: React.FC<PropertiesListProps> = ({ visitorSessionId }) => 
           // small delay so the dialog re-mounts cleanly
           setTimeout(() => setOuterModalOpen(true), 80);
 
-          // If properties are empty, show an informative banner
+          // If properties are empty, show an info notice
           if (!matched.Properties || matched.Properties.length === 0) {
             setNotice({
               kind: "info",
-              msg:
-                "Your details have been sent to an agent. You’ll see properties here as soon as they’re shared.",
+              msg: "Your details have been sent to an agent. You’ll see properties here as soon as they’re shared.",
             });
           } else {
             setNotice(null); // clear old info if we now have results
           }
         }
+        // else do nothing → no matching session, no properties shown
       } catch (err) {
         console.error("SSE parse error", err);
       }
@@ -116,6 +113,7 @@ const PropertiesList: React.FC<PropertiesListProps> = ({ visitorSessionId }) => 
 
     return () => evtSource.close();
   }, [visitorSessionId]);
+
 
   // Derive list for UI (we keep raw untouched; only map _id→id for React keys)
   const propertiesForUI = useMemo(() => {
