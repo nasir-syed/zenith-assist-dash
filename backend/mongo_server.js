@@ -12,7 +12,7 @@ app.use(express.json());
 app.use(cors()); 
 
 
-const MONGO_URI = "mongodb+srv://syednasiruddin:ilovemegaknight@realestate.brkiq5c.mongodb.net/?retryWrites=true&w=majority&appName=RealEstate";
+const MONGO_URI = process.env.MONGO_URI;
 const DB_NAME = process.env.DB_NAME || "TheRealEstate";
 const JWT_SECRET = process.env.JWT_SECRET || "supersecretjwtkey";
 const PORT = process.env.PORT || 5000;
