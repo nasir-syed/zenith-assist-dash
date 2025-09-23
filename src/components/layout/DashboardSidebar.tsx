@@ -2,6 +2,8 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
+
 import { 
   LayoutDashboard, 
   Users, 
@@ -14,6 +16,7 @@ import {
 const DashboardSidebar = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -33,7 +36,7 @@ const DashboardSidebar = () => {
 
   const handleLogout = () => {
     logout();
-    window.location.href = '/';
+    navigate('/')
   };
 
   return (

@@ -64,7 +64,7 @@ const PropertiesList: React.FC<PropertiesListProps> = ({ visitorSessionId }) => 
 
   // UI state
   const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
-  const [selectedDate, setSelectedDate] = useState("");
+  const [chosenDates, setChosenDates] = useState<Record<string, string>>({});
   const [view, setView] = useState<"grid" | "list">("grid");
   const [selectMode, setSelectMode] = useState(false);
   const [query, setQuery] = useState("");
@@ -74,6 +74,13 @@ const PropertiesList: React.FC<PropertiesListProps> = ({ visitorSessionId }) => 
   const [focused, setFocused] = useState<StreamProperty | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
+  const [submissionComplete, setSubmissionComplete] = useState(false);
+
+
+  const handleDateChange = (agentId: string, date: string) => {
+  setChosenDates((prev) => ({ ...prev, [agentId]: date }));
+};
+
 
   // --- SSE hookup: parse ARRAY payload and match SessionId ---
   useEffect(() => {
@@ -170,18 +177,24 @@ const PropertiesList: React.FC<PropertiesListProps> = ({ visitorSessionId }) => 
       setNotice({ kind: "error", msg: "Select at least one property first." });
       return;
     }
-    if (!selectedDate) {
-      setNotice({ kind: "error", msg: "Please choose a date." });
-      return;
+    
+
+    // Validate that all agents have a date selected
+    const agentIds = Array.from(new Set(selectedRaw.map((p) => p.assignedAgent)));
+    for (const agentId of agentIds) {
+      if (!chosenDates[agentId]) {
+        setNotice({ kind: "error", msg: "Please choose a date for each agent." });
+        return;
+      }
     }
 
-    // ChosenDates: DD-MM-YYYY keyed by assignedAgent
-    const [yyyy, mm, dd] = selectedDate.split("-");
-    const ddmmyyyy = `${dd}-${mm}-${yyyy}`;
-
-    const agentIds = Array.from(new Set(selectedRaw.map((p) => p.assignedAgent)));
+    // Convert all dates to DD-MM-YYYY
     const ChosenDates: Record<string, string> = {};
-    agentIds.forEach((agentId) => (ChosenDates[agentId] = ddmmyyyy));
+    for (const [agentId, yyyyMmDd] of Object.entries(chosenDates)) {
+      const [yyyy, mm, dd] = yyyyMmDd.split("-");
+      ChosenDates[agentId] = `${dd}-${mm}-${yyyy}`;
+    }
+
 
     const payload = [
       {
@@ -216,14 +229,20 @@ const PropertiesList: React.FC<PropertiesListProps> = ({ visitorSessionId }) => 
         return;
       }
 
-      setNotice({
-        kind: "success",
-        msg:
-          "Request sent! An agent will follow up with you shortly.",
-      });
-      setSelectMode(false);
-      setSelectedPropertyIds([]);
-      setSelectedDate("");
+     setNotice({
+      kind: "success",
+      msg: "Request sent! An agent will follow up with you shortly.",
+    });
+
+    // Reset selection state only
+    setSelectMode(false);
+    setSelectedPropertyIds([]);
+    setChosenDates({});
+
+    // Mark that submission finished
+    setSubmissionComplete(true);
+
+
     } catch (err) {
       console.error(err);
       setNotice({
@@ -292,7 +311,18 @@ const PropertiesList: React.FC<PropertiesListProps> = ({ visitorSessionId }) => 
   return (
   <>
     {/* Outer Modal */}
-    <Dialog open={outerModalOpen} onOpenChange={setOuterModalOpen}>
+    <Dialog
+      open={outerModalOpen}
+      onOpenChange={(open) => {
+        setOuterModalOpen(open);
+        if (!open && submissionComplete) {
+          // User closed after submission → reset everything
+          sessionStorage.removeItem("visitorSessionId");
+          setRawEnvelope(null);
+          setSubmissionComplete(false); // reset flag
+        }
+      }}
+    >
       <DialogContent className="max-w-6xl max-h-[88vh] p-0 overflow-hidden rounded-2xl border shadow-2xl">
         {/* Sticky toolbar */}
         <div className="sticky top-0 z-10 backdrop-blur-xl bg-white/70 border-b">
@@ -568,18 +598,25 @@ const PropertiesList: React.FC<PropertiesListProps> = ({ visitorSessionId }) => 
           {selectMode && selectedPropertyIds.length > 0 && (
             <div className="sticky bottom-3 mt-6 rounded-xl border bg-background/80 backdrop-blur p-3 shadow-lg">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm">
-                  Selected <b>{selectedPropertyIds.length}</b> properties •{" "}
-                  <b>{uniqueAgents}</b> {uniqueAgents === 1 ? "agent" : "agents"}
-                </p>
-                <div className="flex gap-2">
-                  <Input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="h-9 w-44"
-                  />
-                  <Button onClick={handleRequestMeeting} disabled={submitting}>
+                <div className="flex flex-col gap-3 w-full">
+                  <p className="text-sm">
+                    Selected <b>{selectedPropertyIds.length}</b> properties •{" "}
+                    <b>{uniqueAgents}</b> {uniqueAgents === 1 ? "agent" : "agents"}
+                  </p>
+                  <div className="flex flex-row flex-wrap gap-3 -mt-1">
+                    {Array.from(new Set(selectedRaw.map((p) => p.assignedAgent))).map(
+                      (agentId) => (
+                        <Input
+                          key={agentId}
+                          type="date"
+                          value={chosenDates[agentId] ?? ""}
+                          onChange={(e) => handleDateChange(agentId, e.target.value)}
+                          className="h-9 w-44"
+                        />
+                      )
+                    )}
+                  </div>
+                  <Button onClick={handleRequestMeeting} disabled={submitting} className="mt-2">
                     {submitting ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -590,9 +627,11 @@ const PropertiesList: React.FC<PropertiesListProps> = ({ visitorSessionId }) => 
                     )}
                   </Button>
                 </div>
+
               </div>
             </div>
           )}
+
         </div>
       </DialogContent>
     </Dialog>
