@@ -10,20 +10,30 @@ export interface Agent {
   password?: string;
   clients: string[]; // references to client IDs
   properties: string[]; // references to property IDs
-  assignedClients: string[]; // now an array of client IDs
-  assignedProperties: string[]; // now an array of property IDs
+  assignedClients: string[]; // array of client IDs
+  assignedProperties: string[]; // array of property IDs
 }
-
 
 export interface Client {
-  id: string;
-  name: string;
+  id: string; // corresponds to _id.$oid
+  date: string;
+  fullName: string;
   email: string;
-  phone: string;
-  assignedAgent: string; // could match Agent.name or Agent.id
-  status: string;
-  leadTier: 'Hot' | 'Warm' | 'Cold';
+  phoneNumber: string;
+  preferredContactMethod: string;
+  preferredLanguage: string;
+  budgetRange: string;
+  locationEmirate: string;
+  locationArea: string;
+  purpose: string;
+  timeSpan: string;
+  preApprovalStatus: string;
+  specificRequirements: string[];
+  tier: 'Hot' | 'Warm' | 'Cold';
+  assignedAgents: string[]; // array of agent IDs
+  interestedProperties: string[]; // array of property IDs
 }
+
 
 export interface Property {
   id: string;
@@ -31,7 +41,7 @@ export interface Property {
   location: string;
   price: string;
   status: 'Available' | 'Sold' | 'Pending';
-  assignedAgent: string; // could match Agent.name or Agent.id
+  assignedAgent: string; // agent ID
 }
 
 export const mockAgents: Agent[] = [
@@ -45,55 +55,32 @@ export const mockAgents: Agent[] = [
     notes: 'Expert in first-time homebuyer market',
     username: 'mike.smith',
     password: 'pass1234',
-    clients: ['1', '2'],
-    properties: ['1', '2'],
-    assignedClients: [],
-    assignedProperties: [],
+    clients: ['68cbf1e110c1c8e506fafba8'], // John Smith
+    properties: ['1','2'],
+    assignedClients: ['68cbf1e110c1c8e506fafba8'],
+    assignedProperties: ['1','2'],
   },
   {
-    id: '2',
+    id: '68b7e8ed4733bdecf974e697',
     name: 'Sarah Agent',
-    email: 'agent@realtyco.com',
+    email: 'sarah.agent@realtyco.com',
     phone: '(555) 987-6543',
     dateHired: '2022-07-15',
     status: 'Active',
     notes: 'Top-performing downtown specialist',
     username: 'sarah.agent',
-    clients: ['3', '4'],
+    password: 'pass5678',
+    clients: ['68cbf1e110c1c8e506fafba9'],
     properties: ['3'],
-    assignedClients: [],
-    assignedProperties: [],
+    assignedClients: ['68cbf1e110c1c8e506fafba9'],
+    assignedProperties: ['3'],
   },
-  {
-    id: '3',
-    name: 'Lisa Chen',
-    email: 'lisa@realtyco.com',
-    phone: '(555) 246-8101',
-    dateHired: '2021-11-01',
-    status: 'Active',
-    notes: 'Strong in luxury villa sales',
-    username: 'lisa.chen',
-    clients: ['5'],
-    properties: ['4', '5'],
-    assignedClients: [],
-    assignedProperties: [],
-  },
-];
-
-export const mockClients: Client[] = [
-  { id: '1', name: 'John Smith', email: 'john@email.com', phone: '555-0101', assignedAgent: '68b7e872cc983f4a48a44c8b', status: 'Active', leadTier: 'Hot' },
-  { id: '2', name: 'Emma Davis', email: 'emma@email.com', phone: '555-0102', assignedAgent: '68b7e872cc983f4a48a44c8b', status: 'Active', leadTier: 'Warm' },
-  { id: '3', name: 'Robert Wilson', email: 'robert@email.com', phone: '555-0103', assignedAgent: '2', status: 'Pending', leadTier: 'Cold' },
-  { id: '4', name: 'Maria Garcia', email: 'maria@email.com', phone: '555-0104', assignedAgent: '2', status: 'Active', leadTier: 'Hot' },
-  { id: '5', name: 'David Brown', email: 'david@email.com', phone: '555-0105', assignedAgent: '3', status: 'Active', leadTier: 'Warm' },
 ];
 
 export const mockProperties: Property[] = [
-  { id: '1', title: 'Modern Downtown Condo', location: 'Downtown District', price: '$450,000', status: 'Available', assignedAgent: '68b7e872cc983f4a48a44c8b' },
-  { id: '2', title: 'Suburban Family Home', location: 'Maple Heights', price: '$625,000', status: 'Pending', assignedAgent: '68b7e872cc983f4a48a44c8b' },
-  { id: '3', title: 'Luxury Waterfront Villa', location: 'Lakeside', price: '$1,200,000', status: 'Available', assignedAgent: '2' },
-  { id: '4', title: 'Cozy Townhouse', location: 'Oak Park', price: '$380,000', status: 'Sold', assignedAgent: '3' },
-  { id: '5', title: 'Executive Penthouse', location: 'Business District', price: '$850,000', status: 'Available', assignedAgent: '3' },
+  { id: '1', title: 'Modern Downtown Condo', location: 'Downtown Dubai', price: 'AED 4,500,000', status: 'Available', assignedAgent: '68b7e872cc983f4a48a44c8b' },
+  { id: '2', title: 'Suburban Family Home', location: 'Al Barsha', price: 'AED 6,250,000', status: 'Pending', assignedAgent: '68b7e872cc983f4a48a44c8b' },
+  { id: '3', title: 'Luxury Waterfront Villa', location: 'Abu Dhabi Corniche', price: 'AED 12,000,000', status: 'Available', assignedAgent: '68b7e8ed4733bdecf974e697' },
 ];
 
 export const mockMetrics = {

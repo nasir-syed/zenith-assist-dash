@@ -42,6 +42,13 @@ async function connectDB() {
 }
 connectDB();
 
+function generateToken(user) {
+  return jwt.sign(
+    { id: user._id, role: user.role, email: user.email },
+    JWT_SECRET,
+    { expiresIn: "1d" } // token lasts 1 day
+  );
+}
 /* -----------------------------------
    Helpers
 ----------------------------------- */
@@ -147,6 +154,20 @@ app.post("/api/agents", async (req, res) => {
     res.status(201).json(created);
   } catch (err) {
     console.error("Failed to add agent:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.get("/api/agents/:id", async (req, res) => {
+  const { id } = req.params;
+  if (!ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid agent ID" });
+
+  try {
+    const agent = await db.collection("Agents").findOne({ _id: new ObjectId(id) });
+    if (!agent) return res.status(404).json({ error: "Agent not found" });
+    res.json(agent);
+  } catch (err) {
+    console.error("Error fetching agent:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -329,4 +350,9 @@ app.get("/api/property/:id", async (req, res) => {
     console.error("Error fetching property:", err);
     res.status(500).json({ error: "Internal server error" });
   }
+});
+
+
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });
