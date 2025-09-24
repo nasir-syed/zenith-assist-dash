@@ -26,3 +26,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files (ignore all .env files in any folder)
+*.env
+**/*.env

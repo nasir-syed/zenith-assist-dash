@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,36 +16,100 @@ import { Badge } from '@/components/ui/badge';
 import ClientForm from '@/components/forms/ClientForm';
 import { useToast } from '@/hooks/use-toast';
 import { UserCheck, Flame, ThermometerSun, Snowflake, Plus, Edit, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Client } from '@/data/mockData';
 
 const Clients = () => {
   const { isAuthenticated, user } = useAuth();
-  const { clients, deleteClient } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
-  
+
+  const [clients, setClients] = useState<Client[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [detailsTitle, setDetailsTitle] = useState('');
+  const [detailsData, setDetailsData] = useState<Client | null>(null);
+
+  // ✅ New state for resolved names
+  const [agentNames, setAgentNames] = useState<string[]>([]);
+  const [propertyNames, setPropertyNames] = useState<string[]>([]);
+
+  // Fetch clients
+  const fetchClients = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/clients');
+      const data = await res.json();
+      const mapped: Client[] = data.map((c: any) => ({
+        id: c._id.$oid || c._id,
+        date: c.date,
+        fullName: c.fullName,
+        email: c.email,
+        phoneNumber: c.phoneNumber,
+        preferredContactMethod: c.preferredContactMethod,
+        preferredLanguage: c.preferredLanguage,
+        budgetRange: c.budgetRange,
+        locationEmirate: c.locationEmirate,
+        locationArea: c.locationArea,
+        purpose: c.purpose,
+        timeSpan: c.timeSpan,
+        preApprovalStatus: c.preApprovalStatus,
+        specificRequirements: c.specificRequirements || [],
+        tier: c.tier,
+        assignedAgents: c.assignedAgents || [],
+        interestedProperties: c.interestedProperties || []
+      }));
+      setClients(mapped);
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Error', description: 'Failed to fetch clients.' });
+    }
+  };
+
+  // ✅ Fetch agent + property names when a client is selected
+  const fetchDetailsData = async (client: Client) => {
+    try {
+      // Fetch agents
+      const agentResponses = await Promise.all(
+        client.assignedAgents.map((id) =>
+          fetch(`http://localhost:5000/api/agents/${id}`).then((res) => res.json())
+        )
+      );
+      setAgentNames(agentResponses.map((a) => a.name || 'Unknown Agent'));
+
+      // Fetch properties
+      const propertyResponses = await Promise.all(
+        client.interestedProperties.map((id) =>
+          fetch(`http://localhost:5000/api/property/${id}`).then((res) => res.json())
+        )
+      );
+      setPropertyNames(propertyResponses.map((p) => p.name || p.title || 'Unknown Property'));
+    } catch (err) {
+      console.error('Error fetching details:', err);
+      setAgentNames([]);
+      setPropertyNames([]);
+    }
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
+    } else {
+      fetchClients();
     }
   }, [isAuthenticated, navigate]);
 
-  if (!isAuthenticated) {
-    return null;
-  }
+  if (!isAuthenticated) return null;
 
-  // Filter clients based on user role
-  const visibleClients = user?.role === 'manager' 
-    ? clients 
-    : clients.filter(client => client.assignedAgent === user?.name);
+  const visibleClients = user?.role === 'manager'
+    ? clients
+    : clients.filter(client => client.assignedAgents?.includes(user?.id || ''));
 
   const leadStats = {
-    hot: visibleClients.filter(client => client.leadTier === 'Hot').length,
-    warm: visibleClients.filter(client => client.leadTier === 'Warm').length,
-    cold: visibleClients.filter(client => client.leadTier === 'Cold').length,
+    hot: visibleClients.filter(client => client.tier === 'Hot').length,
+    warm: visibleClients.filter(client => client.tier === 'Warm').length,
+    cold: visibleClients.filter(client => client.tier === 'Cold').length,
     total: visibleClients.length
   };
 
@@ -55,19 +118,35 @@ const Clients = () => {
     setShowForm(true);
   };
 
-  const handleDeleteClient = (client: Client) => {
-    if (confirm(`Are you sure you want to delete ${client.name}?`)) {
-      deleteClient(client.id);
-      toast({
-        title: "Client Deleted",
-        description: `${client.name} has been removed from client list.`,
-      });
+  const handleDeleteClient = async (client: Client) => {
+    if (confirm(`Are you sure you want to delete ${client.fullName}?`)) {
+      try {
+        await fetch(`http://localhost:5000/api/clients/${client.id}`, { method: 'DELETE' });
+        setClients(prev => prev.filter(c => c.id !== client.id));
+        toast({
+          title: "Client Deleted",
+          description: `${client.fullName} has been removed from client list.`,
+        });
+      } catch (err) {
+        console.error(err);
+        toast({ title: 'Error', description: 'Failed to delete client.' });
+      }
     }
+  };
+
+  const handleShowDetails = (client: Client) => {
+    setDetailsTitle(client.fullName);
+    setDetailsData(client);
+    setDetailsModalOpen(true);
+
+    // ✅ fetch extra info
+    fetchDetailsData(client);
   };
 
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingClient(null);
+    fetchClients();
   };
 
   return (
@@ -78,8 +157,8 @@ const Clients = () => {
           <div>
             <h1 className="text-3xl font-bold text-foreground">Clients</h1>
             <p className="text-muted-foreground">
-              {user?.role === 'manager' 
-                ? 'Manage all client relationships and lead tiers' 
+              {user?.role === 'manager'
+                ? 'Manage all client relationships and lead tiers'
                 : 'Manage your assigned clients and lead pipeline'
               }
             </p>
@@ -89,7 +168,7 @@ const Clients = () => {
               {user?.role === 'manager' ? 'All Clients' : 'Your Clients'}: <span className="font-medium text-foreground">{visibleClients.length}</span>
             </div>
             {user?.role === 'manager' && (
-              <Button 
+              <Button
                 onClick={() => handleEditClient()}
                 className="bg-gradient-primary hover:opacity-90"
               >
@@ -102,69 +181,20 @@ const Clients = () => {
 
         {/* Lead Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="shadow-card hover:shadow-elevated transition-shadow animate-fade-in">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="h-12 w-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <UserCheck className="h-6 w-6 text-primary" />
-                </div>
-              </div>
-              <div className="mt-4">
-                <div className="text-2xl font-bold text-foreground">
-                  {leadStats.total}
-                </div>
-                <p className="text-sm text-muted-foreground">Total Clients</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-card hover:shadow-elevated transition-shadow animate-fade-in">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="h-12 w-12 bg-red-50 rounded-lg flex items-center justify-center">
-                  <Flame className="h-6 w-6 text-red-500" />
-                </div>
-              </div>
-              <div className="mt-4">
-                <div className="text-2xl font-bold text-foreground">
-                  {leadStats.hot}
-                </div>
-                <p className="text-sm text-muted-foreground">Hot Leads</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-card hover:shadow-elevated transition-shadow animate-fade-in">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="h-12 w-12 bg-orange-50 rounded-lg flex items-center justify-center">
-                  <ThermometerSun className="h-6 w-6 text-orange-500" />
-                </div>
-              </div>
-              <div className="mt-4">
-                <div className="text-2xl font-bold text-foreground">
-                  {leadStats.warm}
-                </div>
-                <p className="text-sm text-muted-foreground">Warm Leads</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-card hover:shadow-elevated transition-shadow animate-fade-in">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="h-12 w-12 bg-blue-50 rounded-lg flex items-center justify-center">
-                  <Snowflake className="h-6 w-6 text-blue-500" />
-                </div>
-              </div>
-              <div className="mt-4">
-                <div className="text-2xl font-bold text-foreground">
-                  {leadStats.cold}
-                </div>
-                <p className="text-sm text-muted-foreground">Cold Leads</p>
-              </div>
-            </CardContent>
-          </Card>
+          {['total','hot','warm','cold'].map((leadTier) => (
+            <Card key={leadTier} className="shadow-card hover:shadow-elevated transition-shadow animate-fade-in">
+              <CardContent className="p-6 flex flex-col items-center">
+                {leadTier === 'total' && <UserCheck className="h-6 w-6 text-primary" />}
+                {leadTier === 'hot' && <Flame className="h-6 w-6 text-red-500" />}
+                {leadTier === 'warm' && <ThermometerSun className="h-6 w-6 text-orange-500" />}
+                {leadTier === 'cold' && <Snowflake className="h-6 w-6 text-blue-500" />}
+                <div className="mt-4 text-2xl font-bold">{leadStats[leadTier as keyof typeof leadStats]}</div>
+                <p className="text-sm text-muted-foreground">
+                  {leadTier === 'total' ? 'Total Clients' : `${leadTier.charAt(0).toUpperCase() + leadTier.slice(1)} Leads`}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         {/* Clients Table */}
@@ -180,78 +210,50 @@ const Clients = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Contact</TableHead>
-                    {user?.role === 'manager' && <TableHead>Assigned Agent</TableHead>}
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-center">Lead Tier</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Budget</TableHead>
+                    <TableHead>Purpose</TableHead>
+                    <TableHead className="text-center">Tier</TableHead>
                     {user?.role === 'manager' && <TableHead className="text-center">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {visibleClients.map((client) => (
+                  {visibleClients.map(client => (
                     <TableRow key={client.id} className="hover:bg-secondary/50 transition-colors">
-                      <TableCell className="font-mono text-sm">
-                        #{client.id}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {client.name}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        <div>
-                          <div className="text-sm">{client.email}</div>
-                          <div className="text-sm">{client.phone}</div>
-                        </div>
-                      </TableCell>
-                      {user?.role === 'manager' && (
-                        <TableCell className="text-muted-foreground">
-                          {client.assignedAgent}
-                        </TableCell>
-                      )}
+                      <TableCell>{client.fullName}</TableCell>
                       <TableCell>
-                        <Badge 
-                          variant={client.status === 'Active' ? 'default' : 'secondary'}
-                          className={client.status === 'Active' ? 'bg-success text-success-foreground' : ''}
-                        >
-                          {client.status}
-                        </Badge>
+                        <div>{client.email}</div>
+                        <div>{client.phoneNumber}</div>
+                        <div className="text-xs text-muted-foreground">{client.preferredLanguage}</div>
                       </TableCell>
+                      <TableCell>{client.locationEmirate}, {client.locationArea}</TableCell>
+                      <TableCell>{client.budgetRange}</TableCell>
+                      <TableCell>{client.purpose}</TableCell>
                       <TableCell className="text-center">
-                        <Badge 
+                        <Badge
                           variant="outline"
                           className={
-                            client.leadTier === 'Hot' ? 'border-red-500 text-red-700 bg-red-50' :
-                            client.leadTier === 'Warm' ? 'border-orange-500 text-orange-700 bg-orange-50' :
+                            client.tier === 'Hot' ? 'border-red-500 text-red-700 bg-red-50' :
+                            client.tier === 'Warm' ? 'border-orange-500 text-orange-700 bg-orange-50' :
                             'border-blue-500 text-blue-700 bg-blue-50'
                           }
                         >
-                          <span className="flex items-center">
-                            {client.leadTier === 'Hot' && <Flame className="h-3 w-3 mr-1" />}
-                            {client.leadTier === 'Warm' && <ThermometerSun className="h-3 w-3 mr-1" />}
-                            {client.leadTier === 'Cold' && <Snowflake className="h-3 w-3 mr-1" />}
-                            {client.leadTier}
-                          </span>
+                          {client.tier}
                         </Badge>
                       </TableCell>
                       {user?.role === 'manager' && (
                         <TableCell className="text-center">
                           <div className="flex justify-center space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditClient(client)}
-                              className="h-8 w-8 p-0"
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => handleEditClient(client)}>
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteClient(client)}
-                              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => handleDeleteClient(client)} className="text-destructive">
                               <Trash2 className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleShowDetails(client)}>
+                              ...
                             </Button>
                           </div>
                         </TableCell>
@@ -261,28 +263,6 @@ const Clients = () => {
                 </TableBody>
               </Table>
             </div>
-
-            {visibleClients.length === 0 && (
-              <div className="p-12 text-center">
-                <UserCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">No Clients Found</h3>
-                <p className="text-muted-foreground mb-4">
-                  {user?.role === 'manager' 
-                    ? 'Get started by adding your first client.'
-                    : 'No clients have been assigned to you yet.'
-                  }
-                </p>
-                {user?.role === 'manager' && (
-                  <Button 
-                    onClick={() => handleEditClient()}
-                    className="bg-gradient-primary hover:opacity-90"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Client
-                  </Button>
-                )}
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>
@@ -293,6 +273,77 @@ const Clients = () => {
         open={showForm}
         onClose={handleCloseForm}
       />
+
+      {/* Client Details Modal */}
+      <Dialog open={detailsModalOpen} onOpenChange={() => setDetailsModalOpen(false)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{detailsTitle} Details</DialogTitle>
+          </DialogHeader>
+          <div className="py-2 text-sm text-foreground space-y-2">
+            {detailsData && (
+              <>
+                <div className="flex justify-between border-b border-muted-foreground/20 py-1">
+                  <span className="font-medium">Full Name</span>
+                  <span>{detailsData.fullName || '-'}</span>
+                </div>
+                <div className="flex justify-between border-b border-muted-foreground/20 py-1">
+                  <span className="font-medium">Email</span>
+                  <span>{detailsData.email || '-'}</span>
+                </div>
+                <div className="flex justify-between border-b border-muted-foreground/20 py-1">
+                  <span className="font-medium">Phone Number</span>
+                  <span>{detailsData.phoneNumber || '-'}</span>
+                </div>
+                <div className="flex justify-between border-b border-muted-foreground/20 py-1">
+                  <span className="font-medium">Preferred Contact Method</span>
+                  <span>{detailsData.preferredContactMethod || '-'}</span>
+                </div>
+                <div className="flex justify-between border-b border-muted-foreground/20 py-1">
+                  <span className="font-medium">Preferred Language</span>
+                  <span>{detailsData.preferredLanguage || '-'}</span>
+                </div>
+                <div className="flex justify-between border-b border-muted-foreground/20 py-1">
+                  <span className="font-medium">Budget Range</span>
+                  <span>{detailsData.budgetRange || '-'}</span>
+                </div>
+                <div className="flex justify-between border-b border-muted-foreground/20 py-1">
+                  <span className="font-medium">Location</span>
+                  <span>{detailsData.locationEmirate || '-'}, {detailsData.locationArea || '-'}</span>
+                </div>
+                <div className="flex justify-between border-b border-muted-foreground/20 py-1">
+                  <span className="font-medium">Purpose</span>
+                  <span>{detailsData.purpose || '-'}</span>
+                </div>
+                <div className="flex justify-between border-b border-muted-foreground/20 py-1">
+                  <span className="font-medium">Time Span</span>
+                  <span>{detailsData.timeSpan || '-'}</span>
+                </div>
+                <div className="flex justify-between border-b border-muted-foreground/20 py-1">
+                  <span className="font-medium">Pre-Approval Status</span>
+                  <span>{detailsData.preApprovalStatus || '-'}</span>
+                </div>
+                <div className="flex justify-between border-b border-muted-foreground/20 py-1">
+                  <span className="font-medium">Specific Requirements</span>
+                  <span>{detailsData.specificRequirements?.length ? detailsData.specificRequirements.join(', ') : '-'}</span>
+                </div>
+                <div className="flex justify-between border-b border-muted-foreground/20 py-1">
+                  <span className="font-medium">Tier</span>
+                  <span>{detailsData.tier || '-'}</span>
+                </div>
+                <div className="flex justify-between border-b border-muted-foreground/20 py-1">
+                  <span className="font-medium">Assigned Agents</span>
+                  <span>{agentNames.length > 0 ? agentNames.join(', ') : '-'}</span>
+                </div>
+                <div className="flex justify-between border-b border-muted-foreground/20 py-1">
+                  <span className="font-medium">Interested Properties</span>
+                  <span>{propertyNames.length > 0 ? propertyNames.join(', ') : '-'}</span>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

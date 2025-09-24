@@ -3,6 +3,7 @@ const { MongoClient,  ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const cors = require("cors");
+const { Console } = require("console");
 // const bcrypt = require("bcrypt"); // optional for hashed passwords
 
 dotenv.config();
@@ -209,6 +210,20 @@ app.post("/api/agents", async (req, res) => {
   }
 });
 
+app.get("/api/agents/:id", async (req, res) => {
+  const { id } = req.params;
+  if (!ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid agent ID" });
+
+  try {
+    const agent = await db.collection("Agents").findOne({ _id: new ObjectId(id) });
+    if (!agent) return res.status(404).json({ error: "Agent not found" });
+    res.json(agent);
+  } catch (err) {
+    console.error("Error fetching agent:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 app.get("/api/client/:id", async (req, res) => {
   const { id } = req.params;
   if (!ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid client ID" });
@@ -233,6 +248,261 @@ app.get("/api/property/:id", async (req, res) => {
     res.json(property);
   } catch (err) {
     console.error("Error fetching property:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Get all clients
+app.get("/api/clients", async (req, res) => {
+  try {
+    const clients = await db.collection("Clients").find({}).toArray();
+    res.json(clients);
+  } catch (err) {
+    console.error("Failed to fetch clients:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Get a single client by ID
+app.get("/api/clients/:id", async (req, res) => {
+  const { id } = req.params;
+  if (!ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid client ID" });
+
+  try {
+    const client = await db.collection("Clients").findOne({ _id: new ObjectId(id) });
+    if (!client) return res.status(404).json({ error: "Client not found" });
+    res.json(client);
+  } catch (err) {
+    console.error("Error fetching client:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Add a new client
+app.post("/api/clients", async (req, res) => {
+  const {
+    fullName,
+    email,
+    phoneNumber,
+    preferredContactMethod,
+    preferredLanguage,
+    budgetRange,
+    locationEmirate,
+    locationArea,
+    purpose,
+    timeSpan,
+    preApprovalStatus,
+    specificRequirements = [],
+    tier,
+    mailSent = false,
+    assignedAgents = [],
+    interestedProperties = []
+  } = req.body;
+
+  if (!fullName || !email) {
+    return res.status(400).json({ error: "Full name and email are required" });
+  }
+
+  try {
+    const collection = db.collection("Clients");
+
+    const existing = await collection.findOne({ email: email.trim().toLowerCase() });
+    if (existing) {
+      return res.status(409).json({ error: "Client with this email already exists" });
+    }
+
+    const newClient = {
+      date: (new Date()).toLocaleDateString('en-GB'),
+      fullName,
+      email: email.trim().toLowerCase(),
+      phoneNumber: phoneNumber || "",
+      preferredContactMethod: preferredContactMethod || "",
+      preferredLanguage: preferredLanguage || "",
+      budgetRange: budgetRange || "",
+      locationEmirate: locationEmirate || "",
+      locationArea: locationArea || "",
+      purpose: purpose || "",
+      timeSpan: timeSpan || "",
+      preApprovalStatus: preApprovalStatus || "",
+      specificRequirements,
+      tier: tier || "Cold",
+      mailSent,
+      assignedAgents,
+      interestedProperties
+    };
+
+    const result = await collection.insertOne(newClient);
+    const createdClient = await collection.findOne({ _id: result.insertedId });
+    res.status(201).json(createdClient);
+  } catch (err) {
+    console.error("Failed to add client:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Update a client
+app.put("/api/clients/:id", async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body;
+
+  if (!ObjectId.isValid(id)) {
+    return res.status(400).json({ error: "Invalid client ID" });
+  }
+
+  try {
+    const collection = db.collection("Clients");
+    const result = await collection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updateData }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: "Client not found" });
+    }
+
+    const updatedClient = await collection.findOne({ _id: new ObjectId(id) });
+    res.json(updatedClient);
+  } catch (err) {
+    console.error("Failed to update client:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Delete a client
+app.delete("/api/clients/:id", async (req, res) => {
+  const { id } = req.params;
+
+  if (!ObjectId.isValid(id)) {
+    return res.status(400).json({ error: "Invalid client ID" });
+  }
+
+  try {
+    const collection = db.collection("Clients");
+    const result = await collection.deleteOne({ _id: new ObjectId(id) });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: "Client not found" });
+    }
+
+    res.json({ message: "Client deleted successfully" });
+  } catch (err) {
+    console.error("Failed to delete client:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// single property fetch (used by details modal)
+app.get("/api/property/:id", async (req, res) => {
+  const { id } = req.params;
+  if (!ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid property ID" });
+  try {
+    const doc = await db.collection("Properties").findOne({ _id: new ObjectId(id) });
+    if (!doc) return res.status(404).json({ error: "Property not found" });
+    res.json(doc);
+  } catch (err) {
+    console.error("Error fetching property:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// server.js
+app.get("/api/properties", async (req, res) => {
+  try {
+    const { status, community, q, limit = 50, skip = 0 } = req.query;
+    const filter = {};
+    if (status) filter.status = status;
+    if (community) filter.community = community;
+    if (q) filter.title = { $regex: q, $options: "i" };
+
+    const items = await db.collection("Properties")
+      .find(filter)
+      .skip(Number(skip))
+      .limit(Number(limit))
+      .toArray();
+
+    res.json(items);
+  } catch (err) {
+    console.error("Failed to fetch properties:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+//CREATE property
+
+app.post("/api/properties", async (req, res) => {
+  try {
+    const {
+      title, community, subCommunity, price, status,
+      assignedAgent, cover_photo, emirate, amenities = [], type
+    } = req.body;
+
+    if (!title || !community || !emirate)
+      return res.status(400).json({ error: "title, community, emirate are required" });
+
+    const doc = {
+      title,
+      community,
+      subCommunity: subCommunity || "",
+      price: Number(price) || 0,
+      status: status || "Available",
+      assignedAgent: assignedAgent ? toObjectId(assignedAgent) : undefined,
+      cover_photo: cover_photo || "",
+      emirate,
+      amenities,
+      type: type || "",
+      createdAt: new Date()
+    };
+
+    const result = await db.collection("Properties").insertOne(doc);
+    const created = await db.collection("Properties").findOne({ _id: result.insertedId });
+    res.status(201).json(created);
+  } catch (err) {
+    console.error("Create property error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+//UPDATE property
+
+app.put("/api/properties/:id", async (req, res) => {
+  const { id } = req.params;
+  if (!ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid id" });
+
+  try {
+    const update = { ...req.body };
+    if ("price" in update) update.price = Number(update.price) || 0;
+    if ("assignedAgent" in update && update.assignedAgent)
+      update.assignedAgent = toObjectId(update.assignedAgent);
+    if ("amenities" in update && Array.isArray(update.amenities))
+      update.amenities = update.amenities.filter(Boolean);
+
+    const result = await db.collection("Properties").findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: update },
+      { returnDocument: "after" }
+    );
+    if (!result.value) return res.status(404).json({ error: "Not found" });
+    res.json(result.value);
+  } catch (err) {
+    console.error("Update property error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+//DELETE property
+app.delete("/api/properties/:id", async (req, res) => {
+  const { id } = req.params;
+  if (!ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid id" });
+
+  try {
+    const out = await db.collection("Properties").deleteOne({ _id: new ObjectId(id) });
+    if (!out.deletedCount) return res.status(404).json({ error: "Not found" });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Delete property error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
