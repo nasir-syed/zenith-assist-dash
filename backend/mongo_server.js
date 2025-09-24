@@ -2,6 +2,7 @@ const express = require("express");
 const { MongoClient, ObjectId } = require("mongodb");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const jwt = require("jsonwebtoken");               // ✅ add jwt
 dotenv.config();
 
 const app = express();
@@ -11,6 +12,7 @@ app.use(cors());
 const MONGO_URI = process.env.MONGO_URI;
 const DB_NAME = process.env.DB_NAME || "TheRealEstate";
 const PORT = process.env.PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || "supersecretjwtkey"; // ✅ add secret
 
 if (!MONGO_URI) {
   console.error("❌ Missing MONGO_URI in .env");
@@ -27,7 +29,7 @@ async function connectDB() {
     const client = new MongoClient(MONGO_URI);
     await client.connect();
     db = client.db(DB_NAME);
-    console.log(`✅ Connected to MongoDB: ${DB_NAME}`);
+    console.log(`✅ Connected to MongoDB: ${DB_NAME}`); // ✅ fixed backticks
 
     // helpful index for activity feed
     db.collection("Activity").createIndex({ createdAt: -1 }).catch(() => {});
@@ -42,13 +44,17 @@ async function connectDB() {
 }
 connectDB();
 
+/* -----------------------------------
+   JWT helper
+----------------------------------- */
 function generateToken(user) {
   return jwt.sign(
-    { id: user._id, role: user.role, email: user.email },
+    { id: String(user._id), role: user.role, email: user.email },
     JWT_SECRET,
-    { expiresIn: "1d" } // token lasts 1 day
+    { expiresIn: "1d" }
   );
 }
+
 /* -----------------------------------
    Helpers
 ----------------------------------- */
@@ -91,6 +97,43 @@ function callerFromQuery(req) {
    Health
 ----------------------------------- */
 app.get("/health", (_req, res) => res.json({ ok: true }));
+
+/* -----------------------------------
+   Auth: /api/login (JWT)
+----------------------------------- */
+app.post("/api/login", async (req, res) => {
+  const { role, email, password } = req.body;
+  if (!role || !email || !password) {
+    return res.status(400).json({ error: "Role, email, and password are required" });
+  }
+
+  try {
+    const collection = db.collection(role === "manager" ? "Managers" : "Agents");
+    const cleanEmail = email.trim().toLowerCase();
+    const user = await collection.findOne({ email: cleanEmail });
+
+    if (!user || user.password !== password) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    user.role = role; // attach role for token
+    const token = generateToken(user);
+
+    res.json({
+      message: "Login successful",
+      token,
+      user: {
+        id: String(user._id),
+        email: user.email,
+        role,
+        name: user.fullName || user.name || user.username,
+      },
+    });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 /* -----------------------------------
    Agents
@@ -350,9 +393,4 @@ app.get("/api/property/:id", async (req, res) => {
     console.error("Error fetching property:", err);
     res.status(500).json({ error: "Internal server error" });
   }
-});
-
-
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
 });
