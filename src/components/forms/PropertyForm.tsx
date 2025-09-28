@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Property } from '@/data/mockData';
-import { useData } from '@/contexts/DataContext';
 import {
   Dialog,
   DialogContent,
@@ -10,125 +9,173 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import property1 from '@/assets/property-1.jpg';
-import property2 from '@/assets/property-2.jpg';
-import property3 from '@/assets/property-3.jpg';
-import property4 from '@/assets/property-4.jpg';
-import property5 from '@/assets/property-5.jpg';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { X } from 'lucide-react';
 
 interface PropertyFormProps {
-  property?: (Property & {
-    image: string;
-    description: string;
-    bedrooms: number;
-    bathrooms: number;
-    sqft: number;
-  }) | null;
+  property?: Property | null;
   open: boolean;
   onClose: () => void;
+  agents: { id: string; name: string }[];
+  onSaved?: (savedProperty: Property, isEdit: boolean) => void;
 }
 
-const PropertyForm: React.FC<PropertyFormProps> = ({ property, open, onClose }) => {
-  const { agents, addProperty, updateProperty } = useData();
-  const { toast } = useToast();
+const PROPERTY_TYPES = [
+  'Apartment',
+  'Villa',
+  'Duplex',
+  'Penthouse',
+  'Studio',
+  'Commercial Office',
+  'Retail Space',
+  'Land (Plot)'
+];
 
-  const [formData, setFormData] = useState({
+const AMENITY_OPTIONS = [
+  "Gym or Health Club",
+  "Swimming Pool",
+  "Security Staff",
+  "CCTV Security",
+  "Cafeteria or Canteen",
+  "Freehold",
+  "Kids Play Area",
+  "Lawn or Garden",
+  "Balcony or Terrace",
+  "Lobby in Building",
+  "Parking Spaces",
+  "Metro Nearby",
+  "Pet Friendly",
+  "Rooftop Terrace",
+  "Private Garden",
+  "Sauna or Steam Room",
+  "Smart Home System",
+  "BBQ Area"
+];
+
+const PropertyForm: React.FC<PropertyFormProps> = ({ property, open, onClose, agents, onSaved }) => {
+  const [formData, setFormData] = useState<Omit<Property, 'id'>>({
     title: '',
-    location: '',
-    price: '',
-    status: 'Available' as 'Available' | 'Pending' | 'Sold',
+    community: '',
+    subCommunity: '',
+    price: 0,
+    status: 'Available',
     assignedAgent: '',
-    image: property1,
-    description: '',
-    bedrooms: 1,
-    bathrooms: 1,
-    sqft: 1000
+    cover_photo: '',
+    emirate: '',
+    amenities: [],
+    type: '',
   });
+  const [isLoading, setIsLoading] = useState(false);
 
-  const [image, setImage] = useState(property?.image || '');
-
-  const imageOptions = [
-    { value: property1, label: 'Modern Building' },
-    { value: property2, label: 'Suburban Home' },
-    { value: property3, label: 'Waterfront Villa' },
-    { value: property4, label: 'Townhouse' },
-    { value: property5, label: 'Penthouse' }
-  ];
-
+  // Initialize form with existing property
   useEffect(() => {
     if (property) {
-      setFormData({
-        title: property.title,
-        location: property.location,
-        price: property.price,
-        status: property.status,
-        assignedAgent: property.assignedAgent,
-        image: property.image,
-        description: property.description,
-        bedrooms: property.bedrooms,
-        bathrooms: property.bathrooms,
-        sqft: property.sqft
-      });
-      setImage(property.image);
+      const { id, ...rest } = property;
+      setFormData(rest);
     } else {
       setFormData({
         title: '',
-        location: '',
-        price: '',
+        community: '',
+        subCommunity: '',
+        price: 0,
         status: 'Available',
         assignedAgent: '',
-        image: property1,
-        description: '',
-        bedrooms: 1,
-        bathrooms: 1,
-        sqft: 1000
+        cover_photo: '',
+        emirate: '',
+        amenities: [],
+        type: '',
       });
-      setImage(property1);
     }
   }, [property, open]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (property) {
-      updateProperty(property.id, formData);
-      toast({
-        title: "Property Updated",
-        description: `${formData.title} has been updated successfully.`,
-      });
-    } else {
-      addProperty(formData);
-      toast({
-        title: "Property Added",
-        description: `${formData.title} has been added to listings.`,
-      });
-    }
-
-    onClose();
-  };
-
-  const handleChange = (field: string, value: any) => {
+  const handleChange = (field: keyof Omit<Property, 'id'>, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result as string);
-        setFormData(prev => ({ ...prev, image: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+  const handleAmenityChange = (amenity: string, checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      amenities: checked
+        ? [...prev.amenities, amenity]
+        : prev.amenities.filter(a => a !== amenity)
+    }));
+  };
+
+  const removeAmenity = (amenityToRemove: string) => {
+    setFormData(prev => ({
+      ...prev,
+      amenities: prev.amenities.filter(a => a !== amenityToRemove)
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    try {
+      console.log(property)
+      const isEdit = !!property?.id;
+      const url = isEdit
+        ? `http://localhost:5000/api/properties/${property.id}`
+        : 'http://localhost:5000/api/properties';
+      const method = isEdit ? 'PUT' : 'POST';
+      
+      console.log('Making request:', { method, url, data: formData }); // Debug log
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || `Failed to ${isEdit ? 'update' : 'create'} property`);
+      }
+      
+      const savedProperty = await res.json();
+      console.log('Saved property:', savedProperty); // Debug log
+      
+      // Call the callback with the saved property
+      if (onSaved) {
+        onSaved(savedProperty, isEdit);
+      }
+      
+      onClose();
+    } catch (err: any) {
+      console.error('Error saving property:', err);
+      alert(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!property?.id) return;
+    if (!confirm('Are you sure you want to delete this property?')) return;
+    setIsLoading(true);
+    try {
+      const res = await fetch(`http://localhost:5000/api/properties/${property.id}`, { 
+        method: 'DELETE' 
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to delete property');
+      }
+      
+      // For delete, we can call onSaved with null to indicate deletion
+      if (onSaved) {
+        onSaved(property, true); // Pass the deleted property for reference
+      }
+      
+      onClose();
+    } catch (err: any) {
+      console.error('Error deleting property:', err);
+      alert(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -136,52 +183,60 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ property, open, onClose }) 
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {property ? 'Edit Property' : 'Add New Property'}
-          </DialogTitle>
+          <DialogTitle>{property ? 'Edit Property' : 'Add New Property'}</DialogTitle>
         </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="title">Property Title</Label>
-              <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) => handleChange('title', e.target.value)}
-                required
+              <Label htmlFor="title">Title</Label>
+              <Input 
+                id="title" 
+                value={formData.title} 
+                onChange={e => handleChange('title', e.target.value)} 
+                required 
+                disabled={isLoading}
               />
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) => handleChange('location', e.target.value)}
-                required
+              <Label htmlFor="community">Community</Label>
+              <Input 
+                id="community" 
+                value={formData.community} 
+                onChange={e => handleChange('community', e.target.value)} 
+                required 
+                disabled={isLoading}
               />
             </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="price">Price</Label>
-              <Input
-                id="price"
-                value={formData.price}
-                onChange={(e) => handleChange('price', e.target.value)}
-                placeholder="$450,000"
-                required
+              <Label htmlFor="subCommunity">Sub Community</Label>
+              <Input 
+                id="subCommunity" 
+                value={formData.subCommunity} 
+                onChange={e => handleChange('subCommunity', e.target.value)} 
+                disabled={isLoading}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="price">Price</Label>
+              <Input 
+                id="price" 
+                type="number" 
+                value={formData.price} 
+                onChange={e => handleChange('price', parseFloat(e.target.value))} 
+                required 
+                disabled={isLoading}
+              />
+            </div>
+          </div>
 
+          <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => handleChange('status', value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+              <Select value={formData.status} onValueChange={v => handleChange('status', v)} disabled={isLoading}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Available">Available</SelectItem>
                   <SelectItem value="Pending">Pending</SelectItem>
@@ -189,108 +244,113 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ property, open, onClose }) 
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="assignedAgent">Assigned Agent</Label>
-            <Select value={formData.assignedAgent} onValueChange={(value) => handleChange('assignedAgent', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select an agent" />
-              </SelectTrigger>
-              <SelectContent>
-                {agents.map((agent) => (
-                  <SelectItem key={agent.id} value={agent.name}>
-                    {agent.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="bedrooms">Bedrooms</Label>
-              <Input
-                id="bedrooms"
-                type="number"
-                min="1"
-                max="10"
-                value={formData.bedrooms}
-                onChange={(e) => handleChange('bedrooms', parseInt(e.target.value))}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="bathrooms">Bathrooms</Label>
-              <Input
-                id="bathrooms"
-                type="number"
-                min="1"
-                max="10"
-                value={formData.bathrooms}
-                onChange={(e) => handleChange('bathrooms', parseInt(e.target.value))}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="sqft">Square Feet</Label>
-              <Input
-                id="sqft"
-                type="number"
-                min="100"
-                value={formData.sqft}
-                onChange={(e) => handleChange('sqft', parseInt(e.target.value))}
-                required
-              />
+              <Label htmlFor="assignedAgent">Assigned Agent</Label>
+              <Select value={formData.assignedAgent} onValueChange={v => handleChange('assignedAgent', v)} disabled={isLoading}>
+                <SelectTrigger><SelectValue placeholder="Select agent" /></SelectTrigger>
+                <SelectContent>
+                  {agents.map(agent => (
+                    <SelectItem key={agent.id} value={agent.id}>
+                      {agent.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="image">Property Image</Label>
-            <div className="flex flex-col md:flex-row md:items-center md:gap-4">
-              <label
-                htmlFor="property-image-upload"
-                className="inline-block px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-700 cursor-pointer shadow-sm hover:bg-gray-50 transition"
-                style={{ fontWeight: 500, fontSize: '1rem' }}
-              >
-                Choose Image
-                <input
-                  id="property-image-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-              </label>
-            </div>
-            {image && (
-              <img
-                src={image}
-                alt="Property Preview"
-                className="mt-2 w-full h-32 object-cover rounded-md border"
-              />
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => handleChange('description', e.target.value)}
-              rows={4}
-              required
+            <Label htmlFor="cover_photo">Cover Photo URL</Label>
+            <Input 
+              id="cover_photo" 
+              value={formData.cover_photo} 
+              onChange={e => handleChange('cover_photo', e.target.value)} 
+              placeholder="https://example.com/image.jpg"
+              disabled={isLoading}
             />
           </div>
 
-          <div className="flex justify-end space-x-3">
-            <Button type="button" variant="outline" onClick={onClose}>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="emirate">Emirate</Label>
+              <Input 
+                id="emirate" 
+                value={formData.emirate} 
+                onChange={e => handleChange('emirate', e.target.value)} 
+                disabled={isLoading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="type">Property Type</Label>
+              <Select value={formData.type} onValueChange={v => handleChange('type', v)} disabled={isLoading}>
+                <SelectTrigger><SelectValue placeholder="Select property type" /></SelectTrigger>
+                <SelectContent>
+                  {PROPERTY_TYPES.map(type => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <Label>Amenities</Label>
+            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 border rounded-md">
+              {AMENITY_OPTIONS.map(amenity => (
+                <div key={amenity} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={amenity}
+                    checked={formData.amenities.includes(amenity)}
+                    onCheckedChange={(checked) => handleAmenityChange(amenity, checked as boolean)}
+                    disabled={isLoading}
+                  />
+                  <Label 
+                    htmlFor={amenity} 
+                    className="text-sm font-normal cursor-pointer"
+                  >
+                    {amenity}
+                  </Label>
+                </div>
+              ))}
+            </div>
+            {formData.amenities.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-gray-700">Selected Amenities:</div>
+                <div className="flex flex-wrap gap-2">
+                  {formData.amenities.map(amenity => (
+                    <div 
+                      key={amenity} 
+                      className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white text-sm rounded-full"
+                    >
+                      <span>{amenity}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeAmenity(amenity)}
+                        className="ml-1 hover:bg-blue-700 rounded-full p-0.5"
+                        disabled={isLoading}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3 mt-4">
+            {property?.id && (
+              <Button type="button" variant="destructive" onClick={handleDelete} disabled={isLoading}>
+                {isLoading ? 'Deleting...' : 'Delete'}
+              </Button>
+            )}
+            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-gradient-primary hover:opacity-90">
-              {property ? 'Update Property' : 'Add Property'}
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? 'Saving...' : (property ? 'Update' : 'Add')}
             </Button>
           </div>
         </form>

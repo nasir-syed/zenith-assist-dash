@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Users, Mail, UserCheck, Building2, Plus, Edit, Trash2 } from 'lucide-react';
 import AgentForm from '@/components/forms/AgentForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import DeleteConfirmationModal from '@/components/modals/DeleteConfirmationModal'; // Import the delete modal
 
 export interface Agent {
   id: string;
@@ -48,6 +49,11 @@ const Agents = () => {
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [detailsTitle, setDetailsTitle] = useState('');
   const [detailsList, setDetailsList] = useState<string[]>([]);
+
+  // ✅ Delete confirmation modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // -----------------------------
   // Fetch agents from API
@@ -86,20 +92,42 @@ const Agents = () => {
     setShowForm(true);
   };
 
-  const handleDeleteAgent = async (agent: Agent) => {
-    if (confirm(`Are you sure you want to delete ${agent.name}?`)) {
-      try {
-        const res = await fetch(`http://localhost:5000/api/agents/${agent.id}`, {
-          method: 'DELETE',
-        });
-        if (!res.ok) throw new Error("Failed to delete agent");
-        setAgents((prev) => prev.filter((a) => a.id !== agent.id));
-        toast({ title: "Agent Deleted", description: `${agent.name} has been removed` });
-      } catch (err) {
-        console.error(err);
-        toast({ title: "Error", description: "Failed to delete agent" });
-      }
+  // ✅ Updated delete handler to open confirmation modal
+  const handleDeleteAgent = (agent: Agent) => {
+    setAgentToDelete(agent);
+    setDeleteModalOpen(true);
+  };
+
+  // ✅ Actual delete function that runs after confirmation
+  const confirmDeleteAgent = async () => {
+    if (!agentToDelete) return;
+
+    setDeleteLoading(true);
+    try {
+      const res = await fetch(`http://localhost:5000/api/agents/${agentToDelete.id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error("Failed to delete agent");
+      
+      setAgents((prev) => prev.filter((a) => a.id !== agentToDelete.id));
+      toast({ 
+        title: "Agent Deleted", 
+        description: `${agentToDelete.name} has been removed from the system.` 
+      });
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Error", description: "Failed to delete agent" });
+    } finally {
+      setDeleteLoading(false);
+      setDeleteModalOpen(false);
+      setAgentToDelete(null);
     }
+  };
+
+  // ✅ Close delete modal handler
+  const handleCloseDeleteModal = () => {
+    setDeleteModalOpen(false);
+    setAgentToDelete(null);
   };
 
   const handleCloseForm = () => {
@@ -143,7 +171,7 @@ const Agents = () => {
           <div>
             <h1 className="text-3xl font-bold text-foreground">Agents</h1>
             <p className="text-muted-foreground">
-              Manage your real estate team and track performance
+              Manage your real estate team and track their performance!
             </p>
           </div>
           <div className="flex items-center space-x-6">
@@ -162,26 +190,32 @@ const Agents = () => {
 
         {/* Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="shadow-card">
-            <CardContent className="p-6">
+          <Card className="shadow-card hover:shadow-elevated transition-shadow animate-fade-in">
+            <CardContent className="p-6 flex flex-col items-center justify-center">
               <Users className="h-6 w-6 text-primary" />
               <div className="mt-4 text-2xl font-bold">{agents.length}</div>
               <p className="text-sm text-muted-foreground">Total Agents</p>
             </CardContent>
           </Card>
 
-          <Card className="shadow-card">
-            <CardContent className="p-6">
+          <Card className="shadow-card hover:shadow-elevated transition-shadow animate-fade-in">
+            <CardContent className="p-6 flex flex-col items-center justify-center">
               <UserCheck className="h-6 w-6 text-success" />
               <div className="mt-4 text-2xl font-bold">
-                {agents.reduce((sum, a) => sum + a.clients.length, 0)}
+                {(() => {
+                  const uniqueClients = new Set(
+                    agents.flatMap(agent => agent.clients) // already an array of IDs
+                  );
+                  return uniqueClients.size;
+                })()}
               </div>
               <p className="text-sm text-muted-foreground">Total Clients</p>
             </CardContent>
           </Card>
 
-          <Card className="shadow-card">
-            <CardContent className="p-6">
+
+          <Card className="shadow-card hover:shadow-elevated transition-shadow animate-fade-in">
+            <CardContent className="p-6 flex flex-col items-center justify-center">
               <Building2 className="h-6 w-6 text-warning" />
               <div className="mt-4 text-2xl font-bold">
                 {agents.reduce((sum, a) => sum + a.properties.length, 0)}
@@ -190,8 +224,8 @@ const Agents = () => {
             </CardContent>
           </Card>
 
-          <Card className="shadow-card">
-            <CardContent className="p-6">
+          <Card className="shadow-card hover:shadow-elevated transition-shadow animate-fade-in">
+            <CardContent className="p-6 flex flex-col items-center justify-center">
               <Mail className="h-6 w-6 text-accent" />
               <div className="mt-4 text-2xl font-bold">
                 {agents.length > 0
@@ -321,6 +355,16 @@ const Agents = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ✅ Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        open={deleteModalOpen}
+        onClose={handleCloseDeleteModal}
+        onConfirm={confirmDeleteAgent}
+        title={`Are you sure you want to delete "${agentToDelete?.name}"?`}
+        message="This will permanently remove the agent from your system. All associated client assignments and data will be affected."
+        loading={deleteLoading}
+      />
     </DashboardLayout>
   );
 };

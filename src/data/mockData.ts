@@ -10,8 +10,6 @@ export interface Agent {
   password?: string;
   clients: string[]; // references to client IDs
   properties: string[]; // references to property IDs
-  assignedClients: string[]; // array of client IDs
-  assignedProperties: string[]; // array of property IDs
 }
 
 export interface Client {
@@ -36,13 +34,19 @@ export interface Client {
 
 
 export interface Property {
-  id: string;
+  id: string; 
   title: string;
-  location: string;
-  price: string;
+  community: string;
+  subCommunity?: string;
+  price: number;
   status: 'Available' | 'Sold' | 'Pending';
   assignedAgent: string; // agent ID
+  cover_photo?: string;
+  emirate?: string;
+  amenities?: string[];
+  type?: string;
 }
+
 
 export const mockAgents: Agent[] = [
   {
@@ -57,8 +61,6 @@ export const mockAgents: Agent[] = [
     password: 'pass1234',
     clients: ['68cbf1e110c1c8e506fafba8'], // John Smith
     properties: ['1','2'],
-    assignedClients: ['68cbf1e110c1c8e506fafba8'],
-    assignedProperties: ['1','2'],
   },
   {
     id: '68b7e8ed4733bdecf974e697',
@@ -72,16 +74,77 @@ export const mockAgents: Agent[] = [
     password: 'pass5678',
     clients: ['68cbf1e110c1c8e506fafba9'],
     properties: ['3'],
-    assignedClients: ['68cbf1e110c1c8e506fafba9'],
-    assignedProperties: ['3'],
   },
 ];
 
 export const mockProperties: Property[] = [
-  { id: '1', title: 'Modern Downtown Condo', location: 'Downtown Dubai', price: 'AED 4,500,000', status: 'Available', assignedAgent: '68b7e872cc983f4a48a44c8b' },
-  { id: '2', title: 'Suburban Family Home', location: 'Al Barsha', price: 'AED 6,250,000', status: 'Pending', assignedAgent: '68b7e872cc983f4a48a44c8b' },
-  { id: '3', title: 'Luxury Waterfront Villa', location: 'Abu Dhabi Corniche', price: 'AED 12,000,000', status: 'Available', assignedAgent: '68b7e8ed4733bdecf974e697' },
+  {
+    id: '1',
+    title: 'Modern Downtown Condo',
+    community: 'Downtown Dubai',
+    subCommunity: 'Burj Khalifa District',
+    price: 4500000,
+    status: 'Available',
+    assignedAgent: '68b7e872cc983f4a48a44c8b',
+    cover_photo: 'https://res.cloudinary.com/db7yi9cio/image/upload/v1758017108/property-1.jpg',
+    emirate: 'Dubai',
+    amenities: ['Gym', 'Swimming Pool', '24/7 Security', 'Parking'],
+    type: 'Residential Condo',
+  },
+  {
+    id: '2',
+    title: 'Suburban Family Home',
+    community: 'Al Barsha',
+    subCommunity: 'Al Barsha 3',
+    price: 6250000,
+    status: 'Pending',
+    assignedAgent: '68b7e872cc983f4a48a44c8b',
+    cover_photo: 'https://res.cloudinary.com/db7yi9cio/image/upload/v1758017108/property-2.jpg',
+    emirate: 'Dubai',
+    amenities: ['Garden', 'Garage', 'Private Pool', 'Security System'],
+    type: 'Villa',
+  },
+  {
+    id: '3',
+    title: 'Luxury Waterfront Villa',
+    community: 'Corniche',
+    subCommunity: 'Abu Dhabi Corniche',
+    price: 12000000,
+    status: 'Available',
+    assignedAgent: '68b7e8ed4733bdecf974e697',
+    cover_photo: 'https://res.cloudinary.com/db7yi9cio/image/upload/v1758017108/property-3.jpg',
+    emirate: 'Abu Dhabi',
+    amenities: ['Private Beach', 'Infinity Pool', 'Gym', 'Home Theater'],
+    type: 'Villa',
+  },
+  {
+    id: '4',
+    title: 'Cozy Starter Home',
+    community: 'Mirdif',
+    subCommunity: 'Ghoroob',
+    price: 1800000,
+    status: 'Available',
+    assignedAgent: '68b7e872cc983f4a48a44c8b',
+    cover_photo: 'https://res.cloudinary.com/db7yi9cio/image/upload/v1758017108/property-4_tykhdq.jpg',
+    emirate: 'Dubai',
+    amenities: ['Security Staff', 'CCTV Security', 'Freehold', 'Lobby in Building'],
+    type: 'Commercial Office',
+  },
+  {
+    id: '5',
+    title: 'Elegant Penthouse Suite',
+    community: 'Business Bay',
+    subCommunity: 'Bay Avenue',
+    price: 9500000,
+    status: 'Available',
+    assignedAgent: '68b7e8ed4733bdecf974e697',
+    cover_photo: 'https://res.cloudinary.com/db7yi9cio/image/upload/v1758017108/property-5.jpg',
+    emirate: 'Dubai',
+    amenities: ['Rooftop Terrace', 'Private Elevator', 'Gym', 'Concierge Service'],
+    type: 'Penthouse',
+  },
 ];
+
 
 export const mockMetrics = {
   totalLeads: 156,

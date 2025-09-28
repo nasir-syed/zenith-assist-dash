@@ -21,7 +21,7 @@ const DashboardSidebar = () => {
   const isActive = (path: string) => location.pathname === path;
 
   const managerLinks = [
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    // { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/dashboard/agents', label: 'Agents', icon: Users },
     { path: '/dashboard/clients', label: 'Clients', icon: UserCheck },
     { path: '/dashboard/properties', label: 'Properties', icon: Building2 }

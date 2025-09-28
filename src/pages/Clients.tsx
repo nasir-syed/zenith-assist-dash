@@ -17,6 +17,7 @@ import ClientForm from '@/components/forms/ClientForm';
 import { useToast } from '@/hooks/use-toast';
 import { UserCheck, Flame, ThermometerSun, Snowflake, Plus, Edit, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import DeleteConfirmationModal from '@/components/modals/DeleteConfirmationModal'; // Import the new modal
 import { Client } from '@/data/mockData';
 
 const Clients = () => {
@@ -35,6 +36,11 @@ const Clients = () => {
   // ✅ New state for resolved names
   const [agentNames, setAgentNames] = useState<string[]>([]);
   const [propertyNames, setPropertyNames] = useState<string[]>([]);
+
+  // ✅ Delete confirmation modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Fetch clients
   const fetchClients = async () => {
@@ -118,20 +124,38 @@ const Clients = () => {
     setShowForm(true);
   };
 
-  const handleDeleteClient = async (client: Client) => {
-    if (confirm(`Are you sure you want to delete ${client.fullName}?`)) {
-      try {
-        await fetch(`http://localhost:5000/api/clients/${client.id}`, { method: 'DELETE' });
-        setClients(prev => prev.filter(c => c.id !== client.id));
-        toast({
-          title: "Client Deleted",
-          description: `${client.fullName} has been removed from client list.`,
-        });
-      } catch (err) {
-        console.error(err);
-        toast({ title: 'Error', description: 'Failed to delete client.' });
-      }
+  // ✅ Updated delete handler to open confirmation modal
+  const handleDeleteClient = (client: Client) => {
+    setClientToDelete(client);
+    setDeleteModalOpen(true);
+  };
+
+  // ✅ Actual delete function that runs after confirmation
+  const confirmDeleteClient = async () => {
+    if (!clientToDelete) return;
+
+    setDeleteLoading(true);
+    try {
+      await fetch(`http://localhost:5000/api/clients/${clientToDelete.id}`, { method: 'DELETE' });
+      setClients(prev => prev.filter(c => c.id !== clientToDelete.id));
+      toast({
+        title: "Client Deleted",
+        description: `${clientToDelete.fullName} has been removed from client list.`,
+      });
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Error', description: 'Failed to delete client.' });
+    } finally {
+      setDeleteLoading(false);
+      setDeleteModalOpen(false);
+      setClientToDelete(null);
     }
+  };
+
+  // ✅ Close delete modal handler
+  const handleCloseDeleteModal = () => {
+    setDeleteModalOpen(false);
+    setClientToDelete(null);
   };
 
   const handleShowDetails = (client: Client) => {
@@ -201,8 +225,8 @@ const Clients = () => {
         <Card className="shadow-card animate-fade-in">
           <CardHeader>
             <CardTitle className="flex items-center">
-              <UserCheck className="mr-2 h-5 w-5 text-primary" />
               Client Directory
+              <UserCheck className="ml-2 h-5 w-5 text-primary" />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -344,6 +368,16 @@ const Clients = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ✅ Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        open={deleteModalOpen}
+        onClose={handleCloseDeleteModal}
+        onConfirm={confirmDeleteClient}
+        title={`Are you sure you want to delete "${clientToDelete?.fullName}"?`}
+        message="This will permanently remove the client from your system. All associated data will be lost."
+        loading={deleteLoading}
+      />
     </DashboardLayout>
   );
 };

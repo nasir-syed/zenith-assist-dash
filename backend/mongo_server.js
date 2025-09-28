@@ -405,7 +405,8 @@ app.get("/api/property/:id", async (req, res) => {
   }
 });
 
-// server.js
+
+// Get all properties
 app.get("/api/properties", async (req, res) => {
   try {
     const { status, community, q, limit = 50, skip = 0 } = req.query;
@@ -420,7 +421,13 @@ app.get("/api/properties", async (req, res) => {
       .limit(Number(limit))
       .toArray();
 
-    res.json(items);
+    // ✅ Normalize: convert _id → id
+    const normalized = items.map(({ _id, ...rest }) => ({
+      id: _id.toString(),
+      ...rest,
+    }));
+
+    res.json(normalized);
   } catch (err) {
     console.error("Failed to fetch properties:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -428,81 +435,140 @@ app.get("/api/properties", async (req, res) => {
 });
 
 
-//CREATE property
+// Get a single property by ID
+app.get("/api/properties/:id", async (req, res) => {
+  const { id } = req.params;
+  if (!ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid property ID" });
 
-app.post("/api/properties", async (req, res) => {
   try {
-    const {
-      title, community, subCommunity, price, status,
-      assignedAgent, cover_photo, emirate, amenities = [], type
-    } = req.body;
+    const property = await db.collection("Properties").findOne({ _id: new ObjectId(id) });
+    if (!property) return res.status(404).json({ error: "Property not found" });
+    res.json(property);
+  } catch (err) {
+    console.error("Error fetching property:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
-    if (!title || !community || !emirate)
-      return res.status(400).json({ error: "title, community, emirate are required" });
+// Add a new property
+app.post("/api/properties", async (req, res) => {
+  const {
+    title,
+    community,
+    subCommunity,
+    price,
+    status,
+    assignedAgent,
+    cover_photo,
+    emirate,
+    amenities = [],
+    type
+  } = req.body;
 
-    const doc = {
+  if (!title || !community || !price || !status || !assignedAgent) {
+    return res.status(400).json({ error: "Title, community, price, status, and assignedAgent are required" });
+  }
+
+  try {
+    const newProperty = {
       title,
       community,
       subCommunity: subCommunity || "",
-      price: Number(price) || 0,
-      status: status || "Available",
-      assignedAgent: assignedAgent ? toObjectId(assignedAgent) : undefined,
+      price,
+      status,
+      assignedAgent,
       cover_photo: cover_photo || "",
-      emirate,
+      emirate: emirate || "",
       amenities,
       type: type || "",
       createdAt: new Date()
     };
 
-    const result = await db.collection("Properties").insertOne(doc);
-    const created = await db.collection("Properties").findOne({ _id: result.insertedId });
-    res.status(201).json(created);
+    const result = await db.collection("Properties").insertOne(newProperty);
+    const createdProperty = await db.collection("Properties").findOne({ _id: result.insertedId });
+    res.status(201).json(createdProperty);
   } catch (err) {
-    console.error("Create property error:", err);
+    console.error("Failed to add property:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-
-//UPDATE property
-
+// Update a property
 app.put("/api/properties/:id", async (req, res) => {
   const { id } = req.params;
-  if (!ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid id" });
+  const updateData = { ...req.body };
+
+  if (!ObjectId.isValid(id)) {
+    return res.status(400).json({ error: "Invalid property ID" });
+  }
 
   try {
-    const update = { ...req.body };
-    if ("price" in update) update.price = Number(update.price) || 0;
-    if ("assignedAgent" in update && update.assignedAgent)
-      update.assignedAgent = toObjectId(update.assignedAgent);
-    if ("amenities" in update && Array.isArray(update.amenities))
-      update.amenities = update.amenities.filter(Boolean);
+    const collection = db.collection("Properties");
+    const agentsCollection = db.collection("Agents");
 
-    const result = await db.collection("Properties").findOneAndUpdate(
+    // ✅ Convert assignedAgent to ObjectId if it's a valid string
+    if (updateData.assignedAgent) {
+      if (ObjectId.isValid(updateData.assignedAgent)) {
+        updateData.assignedAgent = new ObjectId(updateData.assignedAgent);
+      } else {
+        updateData.assignedAgent = null;
+      }
+    }
+
+    // Get existing property
+    const existingProperty = await collection.findOne({ _id: new ObjectId(id) });
+    if (!existingProperty) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+
+    const previousAgentId = existingProperty.assignedAgent?.toString();
+    const newAgentId = updateData.assignedAgent ? updateData.assignedAgent.toString() : null;
+
+    // Update the property
+    await collection.updateOne(
       { _id: new ObjectId(id) },
-      { $set: update },
-      { returnDocument: "after" }
+      { $set: updateData }
     );
-    if (!result.value) return res.status(404).json({ error: "Not found" });
-    res.json(result.value);
+
+    // If the assigned agent has changed
+    if (previousAgentId && previousAgentId !== newAgentId) {
+      // Remove property ID from previous agent's properties array
+      await agentsCollection.updateOne(
+        { _id: new ObjectId(previousAgentId) },
+        { $pull: { properties: new ObjectId(id) } }
+      );
+
+      // Add property ID to new agent's properties array
+      if (newAgentId) {
+        await agentsCollection.updateOne(
+          { _id: new ObjectId(newAgentId) },
+          { $addToSet: { properties: new ObjectId(id) } }
+        );
+      }
+    }
+
+    // Fetch and return the updated property
+    const updatedProperty = await collection.findOne({ _id: new ObjectId(id) });
+    res.json(updatedProperty);
+
   } catch (err) {
-    console.error("Update property error:", err);
+    console.error("Failed to update property:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
 
-//DELETE property
+
+// Delete a property
 app.delete("/api/properties/:id", async (req, res) => {
   const { id } = req.params;
-  if (!ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid id" });
+  if (!ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid property ID" });
 
   try {
-    const out = await db.collection("Properties").deleteOne({ _id: new ObjectId(id) });
-    if (!out.deletedCount) return res.status(404).json({ error: "Not found" });
-    res.json({ ok: true });
+    const result = await db.collection("Properties").deleteOne({ _id: new ObjectId(id) });
+    if (result.deletedCount === 0) return res.status(404).json({ error: "Property not found" });
+    res.json({ message: "Property deleted successfully" });
   } catch (err) {
-    console.error("Delete property error:", err);
+    console.error("Failed to delete property:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });

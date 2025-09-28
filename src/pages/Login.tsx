@@ -25,8 +25,12 @@ const Login = () => {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
     if (token && user) {
-      // optional: parse user
-      navigate('/dashboard', { replace: true });
+      const parsedUser = JSON.parse(user); // parse saved user object
+      if (parsedUser.role === 'agent') {
+        navigate('/dashboard/clients', { replace: true });
+      } else {
+        navigate('/dashboard/agents', { replace: true });
+      }
     }
   }, [navigate]);
  
@@ -61,7 +65,11 @@ const Login = () => {
           description: `Welcome back, ${data.user.name || data.user.email}!`,
         });
 
-        navigate('/dashboard');
+        if (role == 'agent') {
+          navigate('/dashboard/clients', { replace: true });
+        } else {
+          navigate('/dashboard', { replace: true });
+        }
       } else {
           toast({
             title: 'Login Failed',

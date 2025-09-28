@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Client } from "@/data/mockData";
-import { useData } from "@/contexts/DataContext";
 import {
   Dialog,
   DialogContent,
@@ -42,7 +41,6 @@ const COUNTRY_CODES = [
 ];
 
 const ClientForm: React.FC<ClientFormProps> = ({ client, open, onClose }) => {
-  const { agents } = useData();
 
   const [formData, setFormData] = useState({
     fullName: "",

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Agent } from '@/data/mockData';
-import { useData } from '@/contexts/DataContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +15,6 @@ interface AgentFormProps {
 }
 
 const AgentForm: React.FC<AgentFormProps> = ({ agent, open, onClose }) => {
-  const { addAgent, updateAgent } = useData();
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -79,8 +77,6 @@ const AgentForm: React.FC<AgentFormProps> = ({ agent, open, onClose }) => {
       // Always preserve existing arrays
       payload.clients = agent.clients || [];
       payload.properties = agent.properties || [];
-      payload.assignedClients = agent.assignedClients ?? [];
-      payload.assignedProperties = agent.assignedProperties ?? [];
 
       if (Object.keys(payload).length > 0) {
         const res = await fetch(`http://localhost:5000/api/agents/${agent.id}`, {
@@ -107,8 +103,6 @@ const AgentForm: React.FC<AgentFormProps> = ({ agent, open, onClose }) => {
         password: formData.password,
         clients: [],
         properties: [],
-        assignedClients: [],
-        assignedProperties: [],
       };
 
       const res = await fetch(`http://localhost:5000/api/agents`, {
