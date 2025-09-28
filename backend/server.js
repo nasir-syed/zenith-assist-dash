@@ -5,7 +5,7 @@ let n8nData = [];
 let clients = []; // list of connected SSE clients
 
 const app = express();
-app.use(cors());
+app.use(cors()); // still useful for /properties etc.
 app.use(express.json());
 
 // n8n POSTs property data here
@@ -28,9 +28,15 @@ app.get("/properties", (req, res) => {
 
 // SSE endpoint
 app.get("/stream", (req, res) => {
+  // 🔑 Set CORS headers explicitly for SSE
+  res.setHeader("Access-Control-Allow-Origin", "http://localhost:8080");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+
+  // SSE headers
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
+
   res.flushHeaders(); // send headers immediately
 
   const clientId = Date.now();
