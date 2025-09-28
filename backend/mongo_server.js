@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const { Console } = require("console");
-// const bcrypt = require("bcrypt"); // optional for hashed passwords
+// const bcrypt = require("bcrypt");
 
 dotenv.config();
 
