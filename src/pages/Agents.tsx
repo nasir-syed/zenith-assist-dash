@@ -175,9 +175,6 @@ const Agents = () => {
             </p>
           </div>
           <div className="flex items-center space-x-6">
-            <div className="text-sm text-muted-foreground">
-              Total Agents: <span className="font-medium text-foreground">{agents.length}</span>
-            </div>
             <Button
               onClick={() => handleEditAgent()}
               className="bg-gradient-primary hover:opacity-90 flex items-center space-x-2"

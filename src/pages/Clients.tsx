@@ -188,9 +188,6 @@ const Clients = () => {
             </p>
           </div>
           <div className="flex items-center space-x-4">
-            <div className="text-sm text-muted-foreground">
-              {user?.role === 'manager' ? 'All Clients' : 'Your Clients'}: <span className="font-medium text-foreground">{visibleClients.length}</span>
-            </div>
             {user?.role === 'manager' && (
               <Button
                 onClick={() => handleEditClient()}

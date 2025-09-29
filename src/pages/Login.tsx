@@ -28,7 +28,7 @@ const Login = () => {
       const parsedUser = JSON.parse(user); // parse saved user object
       if (parsedUser.role === 'agent') {
         navigate('/dashboard/clients', { replace: true });
-      } else {
+      } else if (parsedUser === 'manager') {
         navigate('/dashboard/agents', { replace: true });
       }
     }
@@ -70,7 +70,7 @@ const Login = () => {
         if (role == 'agent') {
           navigate('/dashboard/clients', { replace: true });
         } else {
-          navigate('/dashboard', { replace: true });
+          navigate('/dashboard/agents', { replace: true });
         }
       } else {
         toast({

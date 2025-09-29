@@ -367,7 +367,6 @@ app.put("/api/clients/:id", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 // Delete a client
 app.delete("/api/clients/:id", async (req, res) => {
   const { id } = req.params;
@@ -378,18 +377,30 @@ app.delete("/api/clients/:id", async (req, res) => {
 
   try {
     const collection = db.collection("Clients");
+    const agentsCollection = db.collection("Agents");
+
+    // 1. Delete the client by ObjectId
     const result = await collection.deleteOne({ _id: new ObjectId(id) });
 
     if (result.deletedCount === 0) {
       return res.status(404).json({ error: "Client not found" });
     }
 
-    res.json({ message: "Client deleted successfully" });
+    // 2. Remove client ID from all agents' "clients" arrays (string values)
+    await agentsCollection.updateMany(
+      {},
+      {
+        $pull: { clients: id }, // keep as string, not ObjectId
+      }
+    );
+
+    res.json({ message: "Client deleted successfully and references removed" });
   } catch (err) {
     console.error("Failed to delete client:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 
 // single property fetch (used by details modal)
 app.get("/api/property/:id", async (req, res) => {
@@ -556,22 +567,40 @@ app.put("/api/properties/:id", async (req, res) => {
   }
 });
 
-
-
 // Delete a property
 app.delete("/api/properties/:id", async (req, res) => {
   const { id } = req.params;
-  if (!ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid property ID" });
+
+  if (!ObjectId.isValid(id)) {
+    return res.status(400).json({ error: "Invalid property ID" });
+  }
 
   try {
-    const result = await db.collection("Properties").deleteOne({ _id: new ObjectId(id) });
-    if (result.deletedCount === 0) return res.status(404).json({ error: "Property not found" });
-    res.json({ message: "Property deleted successfully" });
+    const propertiesCollection = db.collection("Properties");
+    const agentsCollection = db.collection("Agents");
+
+    // 1. Delete the property document itself
+    const result = await propertiesCollection.deleteOne({ _id: new ObjectId(id) });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+
+    // 2. Remove the property ID from all agents' "properties" arrays (stored as strings)
+    await agentsCollection.updateMany(
+      {},
+      {
+        $pull: { properties: id } // pull as string, not ObjectId
+      }
+    );
+
+    res.json({ message: "Property deleted successfully and references removed from agents" });
   } catch (err) {
     console.error("Failed to delete property:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 
 
 app.listen(PORT, () => {

@@ -62,10 +62,6 @@ const AIAssistant = () => {
             <h1 className="text-4xl font-bold text-foreground mb-4">
               AI Real Estate Assistant
             </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Talk to our AI assistant to book property viewings, ask about listings,
-              or get personalized real estate advice. Available 24/7 to help you.
-            </p>
           </div>
 
           {/* Instructions */}
@@ -73,20 +69,21 @@ const AIAssistant = () => {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <MessageCircle className="mr-2 h-5 w-5 text-primary" />
-                How to Get Started
+                The Procedure
               </CardTitle>
             </CardHeader>
             <CardContent>
               <ol className="space-y-4 list-decimal list-inside">
-                <li>Click the microphone button to start a conversation</li>
-                <li>Ask about properties, schedule viewings, or get advice</li>
-                <li>Receive personalized recommendations instantly</li>
+                <li>Click the phone button to start a conversation</li>
+                <li>Ask about buying or renting properties</li>
+                <li>Complete the procedure and receive personalised recommendations instantly</li>
+                <li>Select those that pique your interest, and an agent will reach out to you shortly!</li>
               </ol>
             </CardContent>
           </Card>
 
           {/* Sample Questions */}
-          <Card className="mt-8 shadow-card">
+          {/* <Card className="mt-8 shadow-card">
             <CardHeader>
               <CardTitle>Sample Questions to Ask</CardTitle>
             </CardHeader>
@@ -110,7 +107,7 @@ const AIAssistant = () => {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* AI Assistant Widget */}
           <Card className="shadow-elevated mt-8">

@@ -65,7 +65,7 @@ const PropertiesList: React.FC<PropertiesListProps> = ({ visitorSessionId }) => 
   // UI state
   const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
   const [chosenDates, setChosenDates] = useState<Record<string, string>>({});
-  const [view, setView] = useState<"grid" | "list">("grid");
+  const [view, setView] = useState<"grid" | "list">("list");
   const [selectMode, setSelectMode] = useState(false);
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] =
@@ -231,7 +231,7 @@ const PropertiesList: React.FC<PropertiesListProps> = ({ visitorSessionId }) => 
 
      setNotice({
       kind: "success",
-      msg: "Request sent! An agent will follow up with you shortly.",
+      msg: "Success! An email has been sent to both you and the agent(s), they will reach out to you shortly, you can now leave this window.",
     });
 
     // Reset selection state only
@@ -386,6 +386,7 @@ const PropertiesList: React.FC<PropertiesListProps> = ({ visitorSessionId }) => 
                     setSelectMode((s) => !s);
                     if (selectMode) setSelectedPropertyIds([]);
                   }}
+                  disabled={submissionComplete}
                 >
                   {selectMode ? "Cancel Selection" : "Select"}
                 </Button>
@@ -455,11 +456,6 @@ const PropertiesList: React.FC<PropertiesListProps> = ({ visitorSessionId }) => 
                             {prop.type && (
                               <Badge className="backdrop-blur bg-white/80 text-foreground">
                                 {prop.type}
-                              </Badge>
-                            )}
-                            {prop.status && (
-                              <Badge variant="secondary" className="backdrop-blur">
-                                {prop.status}
                               </Badge>
                             )}
                           </div>

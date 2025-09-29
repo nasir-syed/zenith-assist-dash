@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from "@/hooks/use-toast";
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
 
 const Contact = () => {
@@ -17,23 +17,46 @@ const Contact = () => {
     message: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Form submitted:', formData);
-    
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  try {
+    const res = await fetch("https://n8n.inlogic.ae/webhook-test/4b51c1d8-b3cd-40d9-a750-197a0f04f411", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(formData),
+    });
+
+    if (!res.ok) throw new Error("Failed to send message");
+
     toast({
       title: "Message Sent!",
       description: "We'll get back to you within 24 hours.",
+      duration: 4000,
+      variant: "default",
     });
-
-    // Reset form
+    
+    // Reset form after success
     setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      message: ''
+      name: "",
+      email: "",
+      phone: "",
+      message: "",
     });
-  };
+  } catch (error) {
+    console.error(error);
+    toast({
+      title: "Error",
+      description: "Something went wrong. Please try again.",
+      duration: 4000,
+      variant: "destructive",
+      className: "top-4 right-4 fixed", 
+    });
+  }
+};
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
@@ -65,7 +88,7 @@ const Contact = () => {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Send className="mr-2 h-5 w-5 text-primary" />
-                  Send Us a Message
+                  Drop Us a Message
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -202,7 +225,7 @@ const Contact = () => {
                 </CardContent>
               </Card>
 
-              <Card className="shadow-card bg-gradient-primary text-primary-foreground">
+              {/* <Card className="shadow-card bg-gradient-primary text-primary-foreground">
                 <CardContent className="p-6">
                   <h3 className="text-xl font-semibold mb-2">
                     Ready to Get Started?
@@ -215,7 +238,7 @@ const Contact = () => {
                     Schedule Consultation
                   </Button>
                 </CardContent>
-              </Card>
+              </Card> */}
             </div>
           </div>
         </div>
