@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ClientFormProps {
   client?: Client | null;
@@ -40,8 +41,10 @@ const COUNTRY_CODES = [
   "965",
 ];
 
-const ClientForm: React.FC<ClientFormProps> = ({ client, open, onClose }) => {
 
+
+const ClientForm: React.FC<ClientFormProps> = ({ client, open, onClose }) => {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -137,12 +140,17 @@ const ClientForm: React.FC<ClientFormProps> = ({ client, open, onClose }) => {
       const method = client ? "PUT" : "POST";
 
       // Convert specificRequirements back into array
-      const payload = {
+      let payload = {
         ...formData,
         specificRequirements: formData.specificRequirements
           ? formData.specificRequirements.split(",").map((s) => s.trim())
           : [],
       };
+
+      // ✅ If new client & user is agent, auto-assign them
+      if (!client && user?.role === "agent") {
+        payload.assignedAgents = [user.id];
+      }
 
       const response = await fetch(apiUrl, {
         method,
@@ -157,6 +165,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ client, open, onClose }) => {
       console.error("Error saving client:", err);
     }
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onClose}>

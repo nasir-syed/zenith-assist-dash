@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { X } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface PropertyFormProps {
   property?: Property | null;
@@ -20,6 +21,7 @@ interface PropertyFormProps {
   agents: { id: string; name: string }[];
   onSaved?: (savedProperty: Property, isEdit: boolean) => void;
 }
+
 
 const PROPERTY_TYPES = [
   'Apartment',
@@ -67,6 +69,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ property, open, onClose, ag
     type: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
+  
 
   // Initialize form with existing property
   useEffect(() => {
@@ -246,10 +250,19 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ property, open, onClose, ag
             </div>
             <div className="space-y-2">
               <Label htmlFor="assignedAgent">Assigned Agent</Label>
-              <Select value={formData.assignedAgent} onValueChange={v => handleChange('assignedAgent', v)} disabled={isLoading}>
-                <SelectTrigger><SelectValue placeholder="Select agent" /></SelectTrigger>
+              <Select 
+                value={formData.assignedAgent} 
+                onValueChange={v => handleChange('assignedAgent', v)} 
+                disabled={isLoading} // prevent switching if agent
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select agent" />
+                </SelectTrigger>
                 <SelectContent>
-                  {agents.map(agent => (
+                  {(user.role === "agent"
+                    ? agents.filter(agent => agent.id === user.id)  // only self
+                    : agents
+                  ).map(agent => (
                     <SelectItem key={agent.id} value={agent.id}>
                       {agent.name}
                     </SelectItem>

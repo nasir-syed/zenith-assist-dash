@@ -188,15 +188,13 @@ const Clients = () => {
             </p>
           </div>
           <div className="flex items-center space-x-4">
-            {user?.role === 'manager' && (
-              <Button
-                onClick={() => handleEditClient()}
-                className="bg-gradient-primary hover:opacity-90"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Client
-              </Button>
-            )}
+            <Button
+              onClick={() => handleEditClient()}
+              className="bg-gradient-primary hover:opacity-90"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Client
+            </Button>
           </div>
         </div>
 
@@ -237,7 +235,7 @@ const Clients = () => {
                     <TableHead>Budget</TableHead>
                     <TableHead>Purpose</TableHead>
                     <TableHead className="text-center">Tier</TableHead>
-                    {user?.role === 'manager' && <TableHead className="text-center">Actions</TableHead>}
+                    <TableHead className="text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -264,21 +262,19 @@ const Clients = () => {
                           {client.tier}
                         </Badge>
                       </TableCell>
-                      {user?.role === 'manager' && (
-                        <TableCell className="text-center">
-                          <div className="flex justify-center space-x-2">
-                            <Button variant="ghost" size="sm" onClick={() => handleEditClient(client)}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDeleteClient(client)} className="text-destructive">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleShowDetails(client)}>
-                              ...
-                            </Button>
-                          </div>
-                        </TableCell>
-                      )}
+                      <TableCell className="text-center">
+                        <div className="flex justify-center space-x-2">
+                          <Button variant="ghost" size="sm" onClick={() => handleEditClient(client)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteClient(client)} className="text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleShowDetails(client)}>
+                            ...
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

@@ -462,6 +462,7 @@ app.get("/api/properties/:id", async (req, res) => {
 });
 
 // Add a new property
+// Add a property
 app.post("/api/properties", async (req, res) => {
   const {
     title,
@@ -487,7 +488,7 @@ app.post("/api/properties", async (req, res) => {
       subCommunity: subCommunity || "",
       price,
       status,
-      assignedAgent,
+      assignedAgent, // keep as string, not ObjectId
       cover_photo: cover_photo || "",
       emirate: emirate || "",
       amenities,
@@ -495,14 +496,26 @@ app.post("/api/properties", async (req, res) => {
       createdAt: new Date()
     };
 
-    const result = await db.collection("Properties").insertOne(newProperty);
-    const createdProperty = await db.collection("Properties").findOne({ _id: result.insertedId });
+    const collection = db.collection("Properties");
+    const agentsCollection = db.collection("Agents");
+
+    // Insert property into Properties collection
+    const result = await collection.insertOne(newProperty);
+    const createdProperty = await collection.findOne({ _id: result.insertedId });
+
+    // ✅ Add property ID to assigned agent’s properties array (as string)
+    await agentsCollection.updateOne(
+      { _id: new ObjectId(assignedAgent) },
+      { $addToSet: { properties: result.insertedId.toString() } }
+    );
+
     res.status(201).json(createdProperty);
   } catch (err) {
     console.error("Failed to add property:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 // Update a property
 app.put("/api/properties/:id", async (req, res) => {
   const { id } = req.params;

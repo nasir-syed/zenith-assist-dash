@@ -188,12 +188,10 @@ const Properties = () => {
                 : 'Manage your assigned property portfolio'}
             </p>
           </div>
-          {user?.role === 'manager' && (
-            <Button onClick={() => openForm()} className="bg-gradient-primary hover:opacity-90">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Property
-            </Button>
-          )}
+          <Button onClick={() => openForm()} className="bg-gradient-primary hover:opacity-90">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Property
+          </Button>
         </div>
 
         {/* Stats */}
