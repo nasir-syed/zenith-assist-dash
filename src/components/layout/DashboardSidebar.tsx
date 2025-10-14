@@ -10,6 +10,7 @@ import {
   UserCheck, 
   Building2, 
   LogOut,
+  Search,
   Home
 } from 'lucide-react';
 
@@ -24,12 +25,14 @@ const DashboardSidebar = () => {
     // { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/dashboard/agents', label: 'Agents', icon: Users },
     { path: '/dashboard/clients', label: 'Clients', icon: UserCheck },
-    { path: '/dashboard/properties', label: 'Properties', icon: Building2 }
+    { path: '/dashboard/properties', label: 'Properties', icon: Building2 },
+    { path: '/dashboard/SearchLeads', label: 'Search Leads', icon: Search }
   ];
 
   const agentLinks = [
     { path: '/dashboard/clients', label: 'Clients', icon: UserCheck },
-    { path: '/dashboard/properties', label: 'Properties', icon: Building2 }
+    { path: '/dashboard/properties', label: 'Properties', icon: Building2 },
+    { path: '/dashboard/SearchLeads', label: 'Search Leads', icon: Search }
   ];
 
   const links = user?.role === 'manager' ? managerLinks : agentLinks;

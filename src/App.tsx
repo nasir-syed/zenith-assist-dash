@@ -8,11 +8,11 @@ import Home from "./pages/Home";
 import AIAssistant from "./pages/AIAssistant";
 import Contact from "./pages/Contact";
 import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
 import Agents from "./pages/Agents";
 import Clients from "./pages/Clients";
 import Properties from "./pages/Properties";
 import NotFound from "./pages/NotFound";
+import SearchLeads from "./pages/SearchLeads";
 
 const queryClient = new QueryClient();
 
@@ -28,10 +28,10 @@ const App = () => (
               <Route path="/assistant" element={<AIAssistant />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/login" element={<Login />} />
-              {/* <Route path="/dashboard" element={<Dashboard />} /> */}
               <Route path="/dashboard/agents" element={<Agents />} />
               <Route path="/dashboard/clients" element={<Clients />} />
               <Route path="/dashboard/properties" element={<Properties />} />
+              <Route path="/dashboard/SearchLeads" element={<SearchLeads />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
