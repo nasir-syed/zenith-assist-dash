@@ -3,7 +3,8 @@ const { MongoClient,  ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const cors = require("cors");
-const { Console } = require("console");
+const { ApifyClient } = require("apify-client");
+
 // const bcrypt = require("bcrypt");
 
 dotenv.config();
@@ -614,6 +615,52 @@ app.delete("/api/properties/:id", async (req, res) => {
   }
 });
 
+app.post("/api/search-leads", async (req, res) => {
+  const { url } = req.body;
+
+  if (!url) {
+    return res.status(400).json({ error: "Missing 'url' in request body." });
+  }
+
+  if (!process.env.APIFY_API_TOKEN) {
+    return res.status(500).json({ error: "Missing APIFY_API_TOKEN in .env" });
+  }
+
+  try {
+    const client = new ApifyClient({
+      token: process.env.APIFY_API_TOKEN,
+    });
+
+    console.log("🔗 Received Apollo search URL:", url);
+
+    // Input for your Apify actor
+    const input = {
+      url,
+      max_result: 25,
+      include_email: true,
+      contact_email_status_v2_verified: true,
+      contact_email_exclude_catch_all: true,
+    };
+
+    // Run the actor (replace this ID with your own if different)
+    const run = await client.actor("iJcISG5H8FJUSRoVA").call(input);
+
+    // Fetch results
+    const { items } = await client.dataset(run.defaultDatasetId).listItems();
+
+    const leads = items.slice(0, 25);
+    console.log(`✅ Retrieved ${leads.length} leads from Apify.`);
+
+    res.json({ success: true, count: leads.length, leads });
+  } catch (error) {
+    console.error("❌ Error fetching leads:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch leads.",
+      details: error.message,
+    });
+  }
+});
 
 
 app.listen(PORT, () => {

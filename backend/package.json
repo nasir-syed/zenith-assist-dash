@@ -12,6 +12,7 @@
     "mongo": "nodemon mongo_server.js"
   },
   "dependencies": {
+    "apify-client": "^2.18.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",

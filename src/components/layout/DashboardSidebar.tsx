@@ -26,13 +26,13 @@ const DashboardSidebar = () => {
     { path: '/dashboard/agents', label: 'Agents', icon: Users },
     { path: '/dashboard/clients', label: 'Clients', icon: UserCheck },
     { path: '/dashboard/properties', label: 'Properties', icon: Building2 },
-    { path: '/dashboard/SearchLeads', label: 'Search Leads', icon: Search }
+    { path: '/dashboard/SearchLeads', label: 'Search', icon: Search }
   ];
 
   const agentLinks = [
     { path: '/dashboard/clients', label: 'Clients', icon: UserCheck },
     { path: '/dashboard/properties', label: 'Properties', icon: Building2 },
-    { path: '/dashboard/SearchLeads', label: 'Search Leads', icon: Search }
+    { path: '/dashboard/SearchLeads', label: 'Search', icon: Search }
   ];
 
   const links = user?.role === 'manager' ? managerLinks : agentLinks;
