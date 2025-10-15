@@ -11,6 +11,7 @@ import {
   Building2, 
   LogOut,
   Search,
+  Calendar,
   Home
 } from 'lucide-react';
 
@@ -22,17 +23,18 @@ const DashboardSidebar = () => {
   const isActive = (path: string) => location.pathname === path;
 
   const managerLinks = [
-    // { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/dashboard/agents', label: 'Agents', icon: Users },
     { path: '/dashboard/clients', label: 'Clients', icon: UserCheck },
     { path: '/dashboard/properties', label: 'Properties', icon: Building2 },
-    { path: '/dashboard/SearchLeads', label: 'Search', icon: Search }
+    { path: '/dashboard/search-leads', label: 'Search', icon: Search },
+    { path: '/dashboard/campaigns', label: 'Campaign', icon: Calendar }
   ];
 
   const agentLinks = [
     { path: '/dashboard/clients', label: 'Clients', icon: UserCheck },
     { path: '/dashboard/properties', label: 'Properties', icon: Building2 },
-    { path: '/dashboard/SearchLeads', label: 'Search', icon: Search }
+    { path: '/dashboard/search-leads', label: 'Search', icon: Search },
+    { path: '/dashboard/campaigns', label: 'Campaign', icon: Calendar }
   ];
 
   const links = user?.role === 'manager' ? managerLinks : agentLinks;

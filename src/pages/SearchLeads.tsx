@@ -13,7 +13,16 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
 import { X, Globe, Mail, Linkedin, UserCircle, Loader2, Building2, MapPin, Briefcase } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 // --- Options ---
 const jobTitles = [
@@ -124,6 +133,7 @@ const industryMap: Record<string, string> = {
 
 
 const SearchLeads = () => {
+    const { isAuthenticated, user } = useAuth();
     const [selectedJobTitles, setSelectedJobTitles] = useState<string[]>([]);
     const [excludedTitles, setExcludedTitles] = useState<string[]>([]);
     const [includeSimilarTitles, setIncludeSimilarTitles] = useState(true);
@@ -133,6 +143,9 @@ const SearchLeads = () => {
     const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
     const [leads, setLeads] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [campaignName, setCampaignName] = useState("");
+    const [selectedLeads, setSelectedLeads] = useState<any[]>([]);
 
     // --- Handlers ---
     const handleAddJobTitle = (title: string) => {
@@ -250,6 +263,73 @@ const SearchLeads = () => {
         }
     };
 
+    const handleOpenCampaignModal = () => {
+        const leadsWithEmail = leads.filter((lead) => lead.email);
+        setSelectedLeads(leadsWithEmail);
+        setIsModalOpen(true);
+    };
+
+    const handleRemoveLeadFromCampaign = (leadId: string) => {
+        setSelectedLeads((prev) => prev.filter((lead) => lead.id !== leadId));
+    };
+
+    const handleCreateCampaign = async () => {
+        const campaignData = {
+            manager: {
+                name: user?.name || "Unknown",
+                email: user?.email || "Unknown",
+            },
+            campaignName: campaignName.trim(),
+            leads: selectedLeads.map((lead) => ({
+                id: lead.id,
+                name: lead.name,
+                email: lead.email,
+                title: lead.title,
+                organization: {
+                    name: lead.organization?.name || null,
+                    industry: lead.organization?.industry || null,
+                    website_url: lead.organization?.website_url || null,
+                },
+                location: {
+                    city: lead.city || null,
+                    state: lead.state || null,
+                    country: lead.country || null,
+                },
+                linkedin_url: lead.linkedin_url || null,
+                photo_url: lead.photo_url || null,
+            })),
+        };
+
+        console.log("📤 Sending Campaign Data:", campaignData);
+
+        try {
+            setLoading(true);
+
+            const response = await fetch("http://localhost:5000/api/campaigns", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(campaignData),
+            });
+
+            const result = await response.json();
+            console.log("✅ Campaign Created:", result);
+
+            if (!response.ok) {
+                throw new Error(result.error || "Failed to create campaign");
+            }
+
+            // Success — reset UI
+            setIsModalOpen(false);
+            setCampaignName("");
+            setSelectedLeads([]);
+            
+
+        } catch (err) {
+            console.error("❌ Error creating campaign:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <DashboardLayout>
@@ -473,7 +553,6 @@ const SearchLeads = () => {
                             </div>
                         </div>
 
-
                         {/* Actions aligned like the Properties CTA */}
                         <div className="flex flex-col md:flex-row gap-4 justify-end pt-2">
                             <Button
@@ -491,14 +570,24 @@ const SearchLeads = () => {
 
                 {/* Placeholder for results grid (to mirror Properties list area) */}
                 <Card className="shadow-card">
-                    <CardHeader>
-                        <CardTitle className="text-2xl">
-                        {loading
-                            ? "Loading leads..."
-                            : leads.length
-                            ? `Results (${leads.filter((lead) => lead.email).length})`
-                            : "Search Results"}
-                        </CardTitle>
+                    <CardHeader className="border mb-4">
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="text-2xl">
+                                {loading
+                                    ? "Loading leads..."
+                                    : leads.length
+                                    ? `Results (${leads.filter((lead) => lead.email).length})`
+                                    : "Search Results"}
+                            </CardTitle>
+                            {leads.length !== 0 && !loading && (
+                                <Button 
+                                    onClick={handleOpenCampaignModal}
+                                    className="bg-gradient-primary hover:opacity-90"
+                                >
+                                    Make Campaign
+                                </Button>
+                            )}
+                        </div>
                     </CardHeader>
 
                     <CardContent>
@@ -632,6 +721,105 @@ const SearchLeads = () => {
                         )}
                     </CardContent>
                 </Card>
+
+                {/* Campaign Modal */}
+                <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle className="text-2xl">Create Campaign</DialogTitle>
+                            <DialogDescription>
+                                Select the leads you want to include in your campaign and give it a name.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="space-y-6 py-4">
+                            {/* Campaign Name Input */}
+                            <div className="space-y-2">
+                                <Label htmlFor="campaign-name" className="text-sm font-semibold">
+                                    Campaign Name
+                                </Label>
+                                <Input
+                                    id="campaign-name"
+                                    type="text"
+                                    placeholder="Enter campaign name..."
+                                    value={campaignName}
+                                    onChange={(e) => setCampaignName(e.target.value)}
+                                    className="h-11"
+                                />
+                            </div>
+
+                            {/* Selected Leads */}
+                            <div className="space-y-2">
+                                <Label className="text-sm font-semibold">
+                                    Selected Leads ({selectedLeads.length})
+                                </Label>
+                                {selectedLeads.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground py-4 text-center">
+                                        No leads selected
+                                    </p>
+                                ) : (
+                                    <div className="space-y-2 max-h-[400px] overflow-y-auto border rounded-md p-3">
+                                        {selectedLeads.map((lead) => (
+                                            <div
+                                                key={lead.id}
+                                                className="flex items-center justify-between p-3 bg-muted rounded-md hover:bg-muted/80 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                    {lead.photo_url ? (
+                                                        <img
+                                                            src={lead.photo_url}
+                                                            alt={lead.name}
+                                                            className="w-10 h-10 rounded-full object-cover border"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded-full border flex items-center justify-center bg-background">
+                                                            <UserCircle className="w-6 h-6 text-muted-foreground" />
+                                                        </div>
+                                                    )}
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-medium text-sm truncate">
+                                                            {lead.name}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground truncate">
+                                                            {lead.email}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleRemoveLeadFromCampaign(lead.id)}
+                                                    className="hover:bg-destructive/10 hover:text-destructive"
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <DialogFooter>
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setIsModalOpen(false);
+                                    setCampaignName("");
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleCreateCampaign}
+                                disabled={!campaignName.trim() || selectedLeads.length === 0}
+                                className="bg-gradient-primary hover:opacity-90"
+                            >
+                                Create Campaign
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
             </div>
         </DashboardLayout>

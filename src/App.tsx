@@ -13,6 +13,7 @@ import Clients from "./pages/Clients";
 import Properties from "./pages/Properties";
 import NotFound from "./pages/NotFound";
 import SearchLeads from "./pages/SearchLeads";
+import Campaigns from "./pages/Campaigns";
 
 const queryClient = new QueryClient();
 
@@ -31,7 +32,8 @@ const App = () => (
               <Route path="/dashboard/agents" element={<Agents />} />
               <Route path="/dashboard/clients" element={<Clients />} />
               <Route path="/dashboard/properties" element={<Properties />} />
-              <Route path="/dashboard/SearchLeads" element={<SearchLeads />} />
+              <Route path="/dashboard/search-leads" element={<SearchLeads />} />
+              <Route path="/dashboard/campaigns" element={<Campaigns />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

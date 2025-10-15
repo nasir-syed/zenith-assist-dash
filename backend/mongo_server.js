@@ -462,7 +462,6 @@ app.get("/api/properties/:id", async (req, res) => {
   }
 });
 
-// Add a new property
 // Add a property
 app.post("/api/properties", async (req, res) => {
   const {
@@ -649,7 +648,6 @@ app.post("/api/search-leads", async (req, res) => {
     const { items } = await client.dataset(run.defaultDatasetId).listItems();
 
     const leads = items.slice(0, 25);
-    console.log(`✅ Retrieved ${leads.length} leads from Apify.`);
 
     res.json({ success: true, count: leads.length, leads });
   } catch (error) {
@@ -659,6 +657,135 @@ app.post("/api/search-leads", async (req, res) => {
       error: "Failed to fetch leads.",
       details: error.message,
     });
+  }
+});
+
+app.post("/api/campaigns", async (req, res) => {
+  const { manager, campaignName, leads } = req.body;
+
+  // --- Validation ---
+  if (!manager || !manager.name || !manager.email || !campaignName || !Array.isArray(leads)) {
+    return res.status(400).json({
+      error: "Manager info, campaignName, and leads array are required.",
+    });
+  }
+
+  try {
+    const campaignsCollection = db.collection("Campaigns");
+
+    const newCampaign = {
+      manager: {
+        name: manager.name,
+        email: manager.email,
+      },
+      campaignName,
+      leads: leads.map((lead) => ({
+        id: lead.id || null,
+        name: lead.name || null,
+        email: lead.email || null,
+        title: lead.title || null,
+        organization: {
+          name: lead.organization?.name || null,
+          industry: lead.organization?.industry || null,
+          website_url: lead.organization?.website_url || null,
+        },
+        location: {
+          city: lead.location?.city || null,
+          state: lead.location?.state || null,
+          country: lead.location?.country || null,
+        },
+        linkedin_url: lead.linkedin_url || null,
+        photo_url: lead.photo_url || null,
+      })),
+    };
+
+    const result = await campaignsCollection.insertOne(newCampaign);
+    const createdCampaign = await campaignsCollection.findOne({ _id: result.insertedId });
+
+    res.status(201).json(createdCampaign);
+  } catch (err) {
+    console.error("❌ Failed to add campaign:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+app.get("/api/campaigns", async (req, res) => {
+  try {
+    const campaignsCollection = db.collection("Campaigns");
+
+    const { name, email } = req.query;
+
+    // --- Validation ---
+    if (!name || !email) {
+      return res.status(400).json({
+        error: "Missing required query parameters: name and email.",
+      });
+    }
+
+    // --- Filter by manager name & email ---
+    const campaigns = await campaignsCollection
+      .find({
+        "manager.name": name,
+        "manager.email": email,
+      })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.status(200).json(campaigns);
+  } catch (err) {
+    console.error("❌ Failed to fetch campaigns:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.put("/api/campaigns/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updatedData = req.body;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Invalid campaign ID" });
+    }
+
+    const campaignsCollection = db.collection("Campaigns");
+    const result = await campaignsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { ...updatedData} }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: "Campaign not found" });
+    }
+
+    res.status(200).json({ success: true, message: "Campaign updated successfully" });
+  } catch (err) {
+    console.error("❌ Failed to update campaign:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+// --- DELETE a campaign ---
+app.delete("/api/campaigns/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Invalid campaign ID" });
+    }
+
+    const campaignsCollection = db.collection("Campaigns");
+    const result = await campaignsCollection.deleteOne({ _id: new ObjectId(id) });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: "Campaign not found" });
+    }
+
+    res.status(200).json({ success: true, message: "Campaign deleted successfully" });
+  } catch (err) {
+    console.error("❌ Failed to delete campaign:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
