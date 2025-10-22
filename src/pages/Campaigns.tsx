@@ -30,6 +30,7 @@ import {
   MapPin,
   DollarSign,
   Search,
+  Calendar,
   X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -335,7 +336,19 @@ const confirmDeleteCampaign = async () => {
                 <Loader2 className="animate-spin h-10 w-10 text-primary mb-3" />
                 <p className="text-muted-foreground">Loading campaigns...</p>
               </div>
-            ) : (
+            ) : campaigns.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+                  <div className="rounded-full bg-muted p-6">
+                    <Calendar className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">No campaigns yet</h3>
+                    <p className="text-muted-foreground text-sm mt-1">
+                      Create a campaign to start organizing your leads and sending property recommendations.
+                    </p>
+                  </div>
+                </div>
+              ) : (
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
