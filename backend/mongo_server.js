@@ -4,7 +4,8 @@ const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const { ApifyClient } = require("apify-client");
-
+const nodemailer = require("nodemailer");
+const OpenAI = require("openai")
 // const bcrypt = require("bcrypt");
 
 dotenv.config();
@@ -13,6 +14,9 @@ const app = express();
 app.use(express.json());
 app.use(cors()); 
 
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 const MONGO_URI = process.env.MONGO_URI;
 const DB_NAME = process.env.DB_NAME || "TheRealEstate";
@@ -788,6 +792,181 @@ app.delete("/api/campaigns/:id", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+app.post("/api/generate-property-emails", async (req, res) => {
+  const { users, properties } = req.body;
+
+  if (!Array.isArray(users) || users.length === 0)
+    return res.status(400).json({ error: "Users array is required" });
+
+  if (!Array.isArray(properties) || properties.length === 0)
+    return res.status(400).json({ error: "Properties array is required" });
+
+  try {
+    // 1️⃣ Generate GPT descriptions for each property
+    const descriptions = await Promise.all(
+      properties.map(async (property) => {
+        const prompt = `
+          Write a short, 2–4 line marketing description for this property:
+          Title: ${property.title}
+          Community: ${property.community || ""}
+          SubCommunity: ${property.subCommunity || ""}
+          Price: ${property.price ? "AED " + property.price.toLocaleString() : "N/A"}
+          Amenities: ${property.amenities?.length ? property.amenities.join(", ") : "N/A"}
+          Highlight key features and make it appealing.
+        `;
+
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.7,
+        });
+
+        return completion.choices[0].message?.content || property.title;
+      })
+    );
+
+    // 2️⃣ Get icebreakers for each user
+    const usersWithIcebreakers = await Promise.all(
+      users.map(async (user) => {
+        if (!user.email || !user.linkedin_url)
+          return { ...user, icebreaker: "" };
+
+        try {
+          const resp = await fetch("https://api.perplexity.ai/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "sonar-pro",
+              messages: [
+                {
+                  role: "system",
+                  content: `
+                    You are a professional networking assistant. Your task is to write a single, concise, and friendly icebreaker message for a LinkedIn user. 
+                    Do not include greetings like "Hello" or "Hi", and do not add any closings such as "Best regards" or similar phrases. 
+                    Do not prefix the message with "Icebreaker:" or any other labels — output only the icebreaker sentence itself. 
+                    The tone should be natural, authentic, and conversational.
+
+                    You have live web access and can read the public LinkedIn profile provided. 
+                    Use only factual details and insights derived from the given LinkedIn URL — do not invent or assume any information beyond what is available on that page.
+                  `,
+                },
+                {
+                  role: "user",
+                  content: `Instructions:
+                    - Review the LinkedIn profile at this URL: ${user.linkedin_url}
+                    - Consider the user's recent roles, bio, and interests and generate an icebreaker.
+                    - Keep the message short (1–2 sentences, 2–4 lines max).
+                  `,
+                },
+              ],
+            }),
+          });
+
+          const data = await resp.json();
+          const icebreaker = data.choices?.[0]?.message?.content || "";
+          return { ...user, icebreaker };
+        } catch {
+          return { ...user, icebreaker: "" };
+        }
+      })
+    );
+
+    // 3️⃣ Generate structured results per user
+    const result = usersWithIcebreakers.map((user) => {
+      // Generate same property list HTML
+      const propertyList = descriptions
+        .map(
+          (desc, i) =>
+            `<li><strong>${properties[i].title}</strong>: ${desc}</li>`
+        )
+        .join("");
+
+      const htmlBody = `
+        <p>Here are some properties we think you might like:</p>
+        <ul>${propertyList}</ul>
+        <p>Best regards,<br/>Real Estate Team</p>
+      `;
+
+      return {
+        email: user.email,
+        name: user.name,
+        icebreaker: user.icebreaker,
+        body: htmlBody, // optional: keep for reference
+      };
+    });
+
+    // 4️⃣ Return structured JSON
+    res.status(200).json({
+      success: true,
+      count: result.length,
+      emails: result,
+    });
+  } catch (err) {
+    console.error("Error generating property emails:", err);
+    res.status(500).json({
+      error: "Failed to generate email bodies",
+      details: err.message,
+    });
+  }
+});
+
+
+app.post("/api/send-generated-emails", async (req, res) => {
+  const { emails } = req.body;
+
+  if (!Array.isArray(emails) || emails.length === 0)
+    return res.status(400).json({ error: "Emails array required" });
+
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.USER,
+        pass: process.env.PASS,
+      },
+    });
+
+    const sendPromises = emails.map(async (user) => {
+      const { email, name, icebreaker, body } = user;
+      if (!email || !body) return null;
+
+      // ✅ Build personalized HTML body
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <p>Hello ${name?.split(" ")[0] || "there"},</p>
+          ${icebreaker ? `<p>${icebreaker}</p>` : ""}
+          ${body}
+        </div>
+      `;
+
+      const info = await transporter.sendMail({
+        from: `"Real Estate App" <${process.env.USER}>`,
+        to: process.env.USER, 
+        subject: "Property Recommendations",
+        html: htmlContent,
+      });
+
+      return { email, messageId: info.messageId };
+    });
+
+    const results = (await Promise.all(sendPromises)).filter(Boolean);
+
+    res.status(200).json({ success: true, results });
+  } catch (err) {
+    console.error("❌ Error sending generated emails:", err);
+    res
+      .status(500)
+      .json({ error: "Failed to send emails", details: err.message });
+  }
+});
+
 
 
 app.listen(PORT, () => {
